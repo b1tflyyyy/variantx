@@ -18,6 +18,13 @@ BraceWrapping:
 IndentAccessModifiers: false
 AccessModifierOffset: -4
 
-ColumnLimit: 90
+ColumnLimit: 100
+
+AlignAfterOpenBracket: true
+
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+AlignTrailingComments: true
+AlignOperands: true
 
 NamespaceIndentation: All
