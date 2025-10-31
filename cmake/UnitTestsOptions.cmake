@@ -1,0 +1,6 @@
+if (WIN32)
+    message(STATUS "OS: Windows")
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+elseif (UNIX)
+    message(STATUS "OS: UNIX-Like")
+endif()
