@@ -80,7 +80,7 @@ namespace test_utilities
 
         ~Counter() noexcept { counter_block_->DestructAdd(); }
 
-        std::shared_ptr<detail::CounterBlock> GetCounterBlock() { return counter_block_; }
+        std::shared_ptr<detail::CounterBlock> GetCounterBlock() const { return counter_block_; }
 
     private:
         std::shared_ptr<detail::CounterBlock> counter_block_;
