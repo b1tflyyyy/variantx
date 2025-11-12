@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 
 namespace utilities
 {
@@ -40,17 +41,16 @@ namespace utilities
 
         template <std::size_t CurrentIndex, std::size_t TargetIndex, typename Head,
                   typename... Rest>
-        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<TargetIndex>,
-                                  Head, Rest...>
+        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<TargetIndex>, Head,
+                                  Rest...>
         {
-            using Type =
-                typename GetTypeByIndexImpl<SizeTWrapper<CurrentIndex + 1>,
-                                            SizeTWrapper<TargetIndex>, Rest...>::Type;
+            using Type = typename GetTypeByIndexImpl<SizeTWrapper<CurrentIndex + 1>,
+                                                     SizeTWrapper<TargetIndex>, Rest...>::Type;
         };
 
         template <std::size_t CurrentIndex, typename Head, typename... Rest>
-        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<CurrentIndex>,
-                                  Head, Rest...>
+        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<CurrentIndex>, Head,
+                                  Rest...>
         {
             using Type = Head;
         };
@@ -60,4 +60,43 @@ namespace utilities
     using GetTypeByIndex =
         typename detail::GetTypeByIndexImpl<SizeTWrapper<0>, SizeTWrapper<TargetIndex>,
                                             Ts...>::Type;
+
+    namespace detail
+    {
+        /*
+            https://en.cppreference.com/w/cpp/utility/variant/variant.html
+            4) Converting constructor.
+        */
+
+        template <typename From, typename To>
+        concept NotNarrowingConversion = requires(From&& from) {
+            { std::type_identity_t<To[]>{std::forward<From>(from)} };  // NOLINT
+        };
+
+        template <typename From, typename... Ts>
+        struct SelectConvertibleImpl
+        {
+            static void Select(...);
+        };
+
+        template <typename From, typename To>
+            requires(NotNarrowingConversion<From, To>)
+        struct SelectConvertibleImpl<From, To>
+        {
+            static To Select(To);
+        };
+
+        template <typename From, typename... Ts>
+        struct SelectorImpl : SelectConvertibleImpl<From, Ts>...
+        {
+            using SelectConvertibleImpl<From, Ts>::Select...;
+        };
+    }  // namespace detail
+
+    template <typename From, typename... Ts>
+    using SelectorType = decltype(detail::SelectorImpl<From, Ts...>::Select(std::declval<From>()));
+
+    template <typename From, typename... Ts>
+    // NOLINTNEXTLINE
+    static constexpr bool SelectorValue = !std::is_same_v<void, SelectorType<From, Ts...>>;
 }  // namespace utilities
