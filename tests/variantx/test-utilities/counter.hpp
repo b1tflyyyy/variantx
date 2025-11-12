@@ -62,7 +62,9 @@ namespace test_utilities
             return *this;
         }
 
-        Counter(Counter&& rhs) noexcept : counter_block_(std::move(rhs.counter_block_))
+        Counter(Counter&& rhs) noexcept
+            : counter_block_(rhs.counter_block_)  // NOLINT
+                                                  // DONT MOVE
         {
             counter_block_->MoveAdd();
         }
@@ -71,7 +73,7 @@ namespace test_utilities
         {
             if (this != &rhs)
             {
-                counter_block_ = std::move(rhs.counter_block_);
+                counter_block_ = rhs.counter_block_;  // DONT MOVE
                 counter_block_->MoveAdd();
             }
 
