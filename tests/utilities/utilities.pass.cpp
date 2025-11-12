@@ -24,4 +24,6 @@ TEST(Utilities, StaticAsserts)
             static_assert(((Indices == ut::GetTypeIndex<Args, Args...>) && ...));
         },
         IndexSequence{}, L1{});
+
+    // TODO: add asserts for Selector
 }
