@@ -23,6 +23,7 @@ namespace variantx
     template <typename... Ts>
     class Variant
     {
+        /* Friends */
         template <std::size_t Index, typename... Args>
         friend constexpr std::add_pointer_t<VariantAlternativeType<Index, Variant<Args...>>> GetIf(
             Variant<Args...>* variant) noexcept;
@@ -49,35 +50,111 @@ namespace variantx
         }
 
         template <typename T>
+            requires(!std::is_same_v<std::remove_cvref_t<T>, Variant<Ts...>> &&
+                     utilities::SelectorValue<std::remove_cvref_t<T>, Ts...>)
         constexpr explicit Variant(T&& object)
-            : index_(utilities::GetTypeIndex<std::decay_t<T>, Ts...>)
+            : index_(utilities::GetTypeIndex<std::remove_cvref_t<T>, Ts...>)
         {
-            using Decayed = std::decay_t<T>;
-            static_assert((std::is_same_v<Decayed, Ts> || ...), "Variant does not contain type T");
+            using Pure = std::remove_cvref_t<T>;
+            static_assert((std::is_same_v<Pure, Ts> || ...), "Variant does not contain type T");
 
-            new (std::data(storage_)) Decayed(std::forward<T>(object));
+            new (std::data(storage_)) Pure(std::forward<T>(object));
         }
 
-        // TODO:
-        constexpr explicit Variant(const Variant<Ts...>&)     = delete;
-        constexpr explicit Variant(Variant<Ts...>&&) noexcept = delete;
+        constexpr Variant(const Variant<Ts...>& rhs)
+            requires(!std::conjunction_v<std::is_copy_constructible<Ts>...>)
+        = delete;
 
-        // TODO:
-        Variant& operator=(const Variant<Ts...>&)     = delete;
-        Variant& operator=(Variant<Ts...>&&) noexcept = delete;
+        constexpr Variant(const Variant<Ts...>& rhs)
+            requires(std::conjunction_v<std::is_copy_constructible<Ts>...>)
+            : index_(rhs.index_)
+        {
+            if (!rhs.ValuelessByException())
+            {
+                CopyConstruct<0>(rhs);
+            }
+        }
+
+        constexpr Variant(Variant<Ts...>&& rhs) noexcept
+            requires(!std::conjunction_v<std::is_nothrow_move_constructible<Ts>...>)
+        = delete;
+
+        constexpr Variant(Variant<Ts...>&& rhs) noexcept
+            requires(std::conjunction_v<std::is_nothrow_move_constructible<Ts>...>)
+            : index_(rhs.index_)
+        {
+            if (!rhs.ValuelessByException())
+            {
+                MoveConstruct<0>(std::move(rhs));
+            }
+        }
+
+        constexpr Variant& operator=(const Variant<Ts...>& rhs)
+            requires(!std::conjunction_v<std::is_copy_constructible<Ts>...> ||
+                     !std::conjunction_v<std::is_copy_assignable<Ts>...>)
+        = delete;
+
+        constexpr Variant& operator=(const Variant<Ts...>& rhs)
+            requires(std::conjunction_v<std::is_copy_constructible<Ts>...> &&
+                     std::conjunction_v<std::is_copy_assignable<Ts>...>)
+        {
+            if ((this == &rhs) || (ValuelessByException() && rhs.ValuelessByException()))
+            {
+                return *this;
+            }
+
+            if (!ValuelessByException() && rhs.ValuelessByException())
+            {
+                Destroy<0>();
+                index_ = variant_npos;
+            }
+            else
+            {
+                CopyAssign<0>(rhs);
+            }
+
+            return *this;
+        }
+
+        constexpr Variant& operator=(Variant<Ts...>&& rhs) noexcept
+            requires(!std::conjunction_v<std::is_nothrow_move_constructible<Ts>...> ||
+                     !std::conjunction_v<std::is_nothrow_move_assignable<Ts>...>)
+        = delete;
+
+        constexpr Variant& operator=(Variant<Ts...>&& rhs) noexcept
+            requires(std::conjunction_v<std::is_nothrow_move_constructible<Ts>...> &&
+                     std::conjunction_v<std::is_nothrow_move_assignable<Ts>...>)
+        {
+            if ((this == &rhs) || (ValuelessByException() && rhs.ValuelessByException()))
+            {
+                return *this;
+            }
+
+            if (!ValuelessByException() && rhs.ValuelessByException())
+            {
+                Destroy<0>();
+                index_ = variant_npos;
+            }
+            else
+            {
+                MoveAssign<0>(std::move(rhs));
+            }
+
+            return *this;
+        }
 
         constexpr ~Variant() noexcept { Destroy<0>(); }
 
         constexpr bool ValuelessByException() const noexcept { return index_ == variant_npos; }
 
         template <typename Self>
-        std::size_t Index(this Self&& self)
+        constexpr std::size_t Index(this Self&& self)
         {
             return std::forward<Self>(self).index_;
         }
 
         template <std::size_t Index, typename... Args>
-        VariantAlternativeType<Index, Variant<Ts...>>& Emplace(Args&&... args)
+        constexpr VariantAlternativeType<Index, Variant<Ts...>>& Emplace(Args&&... args)
         {
             using Type = utilities::GetTypeByIndex<Index, Ts...>;
 
@@ -89,14 +166,13 @@ namespace variantx
         }
 
         template <typename T, typename... Args>
-        T& Emplace(Args&&... args)
+        constexpr T& Emplace(Args&&... args)
         {
             constexpr auto index = utilities::GetTypeIndex<T, Ts...>;  // NOLINT
             return Emplace<index>(std::forward<Args>(args)...);
         }
 
     private:  // NOLINT -> for readability
-        // TODO:
         template <typename T>
         constexpr T* Cast()
         {
@@ -104,7 +180,6 @@ namespace variantx
             return std::launder(reinterpret_cast<T*>(std::data(storage_)));
         }
 
-        // TODO:
         template <typename T>
         constexpr const T* ConstCast() const
         {
@@ -134,7 +209,7 @@ namespace variantx
         }
 
         template <typename T, typename... Args>
-        void Construct(Args&&... args)
+        constexpr void Construct(Args&&... args)
         {
             try
             {
@@ -147,12 +222,79 @@ namespace variantx
             }
         }
 
-        /*
         template <std::size_t Index>
         constexpr void CopyConstruct(const Variant& rhs)
         {
+            if (Index != rhs.index_)
+            {
+                CopyConstruct<Index + 1>(rhs);
+            }
+            else
+            {
+                using Type = utilities::GetTypeByIndex<Index, Ts...>;
+                new (std::data(storage_)) Type(Get<Index>(rhs));
+            }
         }
-        */
+
+        template <>
+        constexpr void CopyConstruct<sizeof...(Ts)>([[maybe_unused]] const Variant& rhs)
+        {
+        }
+
+        template <std::size_t Index>
+        constexpr void MoveConstruct(Variant<Ts...>&& rhs) noexcept
+        {
+            if (Index != rhs.index_)
+            {
+                MoveConstruct<Index + 1>(std::move(rhs));
+            }
+            else
+            {
+                using Type = utilities::GetTypeByIndex<Index, Ts...>;
+                new (std::data(storage_)) Type(Get<Index>(std::move(rhs)));
+            }
+        }
+
+        template <>
+        constexpr void MoveConstruct<sizeof...(Ts)>([[maybe_unused]] Variant<Ts...>&& rhs) noexcept
+        {
+        }
+
+        template <std::size_t Index>
+        constexpr void CopyAssign(const Variant<Ts...>& rhs)
+        {
+            if (Index != rhs.index_)
+            {
+                CopyAssign<Index + 1>(rhs);
+            }
+            else
+            {
+                Get<Index>(*this) = Get<Index>(rhs);
+            }
+        }
+
+        template <>
+        constexpr void CopyAssign<sizeof...(Ts)>([[maybe_unused]] const Variant<Ts...>& rhs)
+        {
+        }
+
+        template <std::size_t Index>
+        constexpr void MoveAssign(Variant<Ts...>&& rhs) noexcept
+        {
+            if (Index != rhs.index_)
+            {
+                MoveAssign<Index + 1>(std::move(rhs));
+            }
+            else
+            {
+                Get<Index>(*this) = Get<Index>(std::move(rhs));
+            }
+        }
+
+        template <>
+        constexpr void MoveAssign<sizeof...(Ts)>([[maybe_unused]] Variant<Ts...>&& rhs) noexcept
+        {
+        }
 
     private:  // NOLINT -> for readability
         std::size_t index_;
