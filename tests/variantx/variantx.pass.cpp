@@ -116,6 +116,7 @@ TEST(Variantx, Get)
 
         static_assert(std::is_same_v<tu::Counter&&, decltype(vx::Get<0>(std::move(vx_variant)))>);
         static_assert(
+            // NOLINTNEXTLINE
             std::is_same_v<const tu::Counter&&, decltype(vx::Get<0>(std::move(const_vx_variant)))>);
 
         /* std::get, vx::Get by index */
@@ -334,8 +335,61 @@ TEST(Variantx, IndexConstNonConst)
     static_assert(std::is_same_v<decltype(const_variant.Index()), std::size_t>);
     ASSERT_EQ(const_variant.Index(), 2);
 
-    /* TODO: copy ctor
     const V const_variant_copy = non_const_variant;
     ASSERT_EQ(const_variant_copy.Index(), 1);
-    */
+}
+
+TEST(Variantx, CopyMoveSemantics)
+{
+    namespace vx = variantx;
+    namespace tu = test_utilities;
+
+    using StdVariant = std::variant<tu::Counter, int, float>;
+    using VxVariant  = vx::Variant<tu::Counter, int, float>;
+
+    std::shared_ptr<tu::detail::CounterBlock> std_block;
+    std::shared_ptr<tu::detail::CounterBlock> vx_block;
+
+    {
+        tu::Counter std_counter;
+        tu::Counter vx_counter;
+
+        std_block = std_counter.GetCounterBlock();
+        vx_block  = vx_counter.GetCounterBlock();
+
+        StdVariant std_variant(std_counter);
+        VxVariant  vx_variant(vx_counter);
+
+        ASSERT_EQ(*std_block, *vx_block);
+
+        // Copy construction
+        StdVariant std_variant_copy(std_variant);
+        VxVariant  vx_variant_copy(vx_variant);
+        ASSERT_EQ(*(std::get<0>(std_variant_copy).GetCounterBlock()),
+                  *(vx::Get<0>(vx_variant_copy).GetCounterBlock()));
+
+        // Move construction
+        StdVariant std_variant_move(std::move(std_variant));
+        VxVariant  vx_variant_move(std::move(vx_variant));
+        ASSERT_EQ(*(std::get<0>(std_variant_move).GetCounterBlock()),
+                  *(vx::Get<0>(vx_variant_move).GetCounterBlock()));
+
+        // Copy assignment
+        StdVariant std_variant_copy_assign(std_counter);
+        VxVariant  vx_variant_copy_assign(vx_counter);
+        std_variant_copy_assign = std_variant_copy;
+        vx_variant_copy_assign  = vx_variant_copy;
+        ASSERT_EQ(*(std::get<0>(std_variant_copy_assign).GetCounterBlock()),
+                  *(vx::Get<0>(vx_variant_copy_assign).GetCounterBlock()));
+
+        // Move assignment
+        StdVariant std_variant_move_assign(std_counter);
+        VxVariant  vx_variant_move_assign(vx_counter);
+        std_variant_move_assign = std::move(std_variant_move);
+        vx_variant_move_assign  = std::move(vx_variant_move);
+        ASSERT_EQ(*(std::get<0>(std_variant_move_assign).GetCounterBlock()),
+                  *(vx::Get<0>(vx_variant_move_assign).GetCounterBlock()));
+    }
+
+    ASSERT_EQ(*std_block, *vx_block);
 }
