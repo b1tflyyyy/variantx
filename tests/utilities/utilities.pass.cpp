@@ -25,5 +25,19 @@ TEST(Utilities, StaticAsserts)
         },
         IndexSequence{}, L1{});
 
-    // TODO: add asserts for Selector
+    static_assert(std::is_same_v<utilities::SelectorType<const char*, std::string>, std::string>);
+    static_assert(utilities::SelectorValue<const char*, std::string>);
+
+    static_assert(std::is_same_v<utilities::SelectorType<const char*, std::string, const char*>,
+                                 const char*>);
+    static_assert(utilities::SelectorValue<const char*, std::string, const char*>);
+
+    static_assert(
+        std::is_same_v<utilities::SelectorType<const char*, std::string, bool>, std::string>);
+    static_assert(utilities::SelectorValue<const char*, std::string, bool>);
+
+    // NOLINTNEXTLINE
+    static_assert(std::is_same_v<utilities::SelectorType<int, float, long, double>, long>);
+    // NOLINTNEXTLINE
+    static_assert(utilities::SelectorValue<int, float, long, double>);
 }
