@@ -1,1 +1,2 @@
-create_test(variantx)
+add_subdirectory(basic)
+add_subdirectory(advanced)
