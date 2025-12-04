@@ -1,6 +1,6 @@
 #pragma once
 
-namespace test_utilities
+namespace test_basic
 {
     // NOLINTBEGIN
     struct ThrowOnCopy
@@ -14,4 +14,4 @@ namespace test_utilities
         [[maybe_unused]] int value_;
     };
     // NOLINTEND
-}  // namespace test_utilities
+}  // namespace test_basic

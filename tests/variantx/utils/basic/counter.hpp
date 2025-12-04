@@ -5,13 +5,13 @@
 #include <format>
 #include <memory>
 
-namespace test_utilities
+namespace test_basic
 {
     namespace detail
     {
         class CounterBlock
         {
-            friend struct std::formatter<test_utilities::detail::CounterBlock>;
+            friend struct std::formatter<test_basic::detail::CounterBlock>;
 
             // NOLINTNEXTLINE
             enum Get : std::size_t
@@ -87,18 +87,18 @@ namespace test_utilities
     private:
         std::shared_ptr<detail::CounterBlock> counter_block_;
     };
-}  // namespace test_utilities
+}  // namespace test_basic
 
 template <>
-struct std::formatter<test_utilities::detail::CounterBlock> : std::formatter<std::string>
+struct std::formatter<test_basic::detail::CounterBlock> : std::formatter<std::string>
 {
-    auto format(const test_utilities::detail::CounterBlock& counter_block,
-                std::format_context&                        ctx) const
+    auto format(const test_basic::detail::CounterBlock& counter_block,
+                std::format_context&                    ctx) const
     {
-        using test_utilities::detail::CounterBlock::Get::COPY;
-        using test_utilities::detail::CounterBlock::Get::CTOR;
-        using test_utilities::detail::CounterBlock::Get::DTOR;
-        using test_utilities::detail::CounterBlock::Get::MOVE;
+        using test_basic::detail::CounterBlock::Get::COPY;
+        using test_basic::detail::CounterBlock::Get::CTOR;
+        using test_basic::detail::CounterBlock::Get::DTOR;
+        using test_basic::detail::CounterBlock::Get::MOVE;
 
         // clang-format off
         return std::formatter<std::string>::format(
