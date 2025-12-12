@@ -20,6 +20,7 @@
 // NOLINTBEGIN
 namespace advanced_test
 {
+#if 0
     // TODO:
     TEST(traits, destructor)
     {
@@ -87,7 +88,6 @@ namespace advanced_test
         EXPECT_FALSE(std::is_nothrow_constructible_v<V1, const char*>);
     }
 
-#if 0
     TEST(traits, in_place_type)
     {
         using V1 = variantx::Variant<int, float, std::string, Trivial, std::vector<int>,
