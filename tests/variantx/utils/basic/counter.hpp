@@ -34,7 +34,7 @@ namespace test_basic
             bool operator!=(const CounterBlock& rhs) const noexcept { return !(*this == rhs); }
 
         private:
-            std::array<std::size_t, 4> data_;
+            std::array<std::size_t, 4> data_ = {};
         };
     }  // namespace detail
 
