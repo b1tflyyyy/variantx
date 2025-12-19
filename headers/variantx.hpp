@@ -371,6 +371,8 @@ namespace variantx
 
             struct Variant
             {
+            public:
+                // Internal visitor
                 template <typename Visitor, typename... Variants>
                 static constexpr decltype(auto) VisitAlternativeAt(std::size_t index,
                                                                    Visitor&&   visitor,
@@ -380,6 +382,7 @@ namespace variantx
                                                     std::forward<Variants>(variants).impl_...);
                 }
 
+                // Internal visitor
                 template <typename Visitor, typename... Variants>
                 static constexpr decltype(auto) VisitAlternative(Visitor&& visitor,
                                                                  Variants... variants)
@@ -387,6 +390,53 @@ namespace variantx
                     return Base::VisitAlternative(
                         std::forward<Visitor>(visitor),
                         AsVariant(std::forward<Variants>(variants)).impl_...);
+                }
+
+                // External visitor
+                template <typename Visitor, typename... Variants>
+                static decltype(auto) VisitValueAt(std::size_t index, Visitor&& visitor,
+                                                   Variants&&... variants)
+                {
+                    return VisitAlternativeAt(index,
+                                              MakeValueVisitor(std::forward<Visitor>(visitor)),
+                                              std::forward<Variants>(variants)...);
+                }
+
+                template <typename Visitor, typename... Variants>
+                static decltype(auto) VisitValue(Visitor&& visitor, Variants&&... variants)
+                {
+                    return VisitAlternative(MakeValueVisitor(std::forward<Visitor>(visitor)),
+                                            std::forward<Variants>(variants)...);
+                }
+
+            private:
+                template <typename Visitor, typename... Values>
+                static constexpr void VisitExhaustiveVisitorCheck()
+                {
+                    static_assert(std::is_invocable_v<Visitor, Values...>,
+                                  "`std::visit` requires the visitor to be exhaustive.");
+                }
+
+                template <typename Visitor>
+                struct ValueVisitor
+                {
+                    template <typename... Alternatives>
+                    constexpr decltype(auto) operator()(Alternatives&&... alternatives) const
+                    {
+                        VisitExhaustiveVisitorCheck<Visitor, decltype((std::forward<Alternatives>(
+                                                                 alternatives)))...>();
+                        // head_ , ? __value like in libcxx, alts<...>
+                        return std::invoke(std::forward<Visitor>(visitor_),
+                                           std::forward<Alternatives>(alternatives)...);
+                    }
+
+                    Visitor&& visitor_;  // NOLINT -> ref data member
+                };
+
+                template <typename Visitor>
+                static constexpr auto MakeValueVisitor(Visitor&& visitor)
+                {
+                    return ValueVisitor<Visitor>{std::forward<Visitor>(visitor)};
                 }
             };
         }  // namespace visitation
@@ -456,6 +506,8 @@ namespace variantx
             friend struct visitation::Base;
 
         public:
+            using IndexType = std::size_t;
+
             template <std::size_t Index, typename... Args>
             // NOLINTNEXTLINE -> unnamed parameter
             explicit constexpr Base([[maybe_unused]] std::in_place_index_t<Index>, Args&&... args)
@@ -481,6 +533,72 @@ namespace variantx
             std::size_t                    index_;
             VariadicUnion<Trait, 0, Ts...> variadic_union_;
         };
+
+        template <typename Traits, Trait = Traits::kDestructibleTrait>
+        class Dtor;
+
+        // clang-format off
+        // NOLINTNEXTLINE -> use constexpr instead of macros
+        #define VARIANTX_DESTRUCTOR(destructible_trait, destructor_definition, destroy)                                            \
+        template <typename... Ts>                                                                                                  \
+        class Dtor<Traits<Ts...>, destructible_trait> : public Base<destructible_trait, Ts...>                                     \
+        {                                                                                                                          \
+            using BaseType = Base<destructible_trait, Ts...>;                                                                      \
+            using IndexType = typename BaseType::IndexType;                                                                        \
+                                                                                                                                   \
+        public:                                                                                                                    \
+            using BaseType::BaseType;                                                                                              \
+            using BaseType::operator=;                                                                                             \
+                                                                                                                                   \
+            Dtor(const Dtor&) = default;                                                                                           \
+            Dtor(Dtor&&) noexcept = default;                                                                                       \
+            Dtor& operator=(const Dtor&) = default;                                                                                \
+            Dtor& operator=(Dtor&&) noexcept = default;                                                                            \
+                                                                                                                                   \
+            destructor_definition;                                                                                                 \
+                                                                                                                                   \
+        protected:                                                                                                                 \
+            destroy; /* NOLINT */                                                                                                  \
+        };
+        // clang-format on
+
+        // clang-format off
+
+        // Generating Trivially Destructible Dtor version
+        VARIANTX_DESTRUCTOR(
+            Trait::TriviallyAvailable,
+            constexpr ~Dtor() noexcept = default,
+            void Destroy() noexcept
+            {
+                this->index_ = kVariantNpos;
+            } VARIANTX_EAT_SEMICOLON);
+
+        // Generating Non-Trivially Destructible Dtor version
+        VARIANTX_DESTRUCTOR(
+            Trait::Available,
+            constexpr ~Dtor() noexcept { Destroy(); } VARIANTX_EAT_SEMICOLON,
+            void Destroy() noexcept
+            {
+                if (!this->ValuelessByException())
+                {
+                    visitation::Base::VisitAlternative([](auto& alternative) noexcept
+                    {
+                        using Type = std::remove_cvref_t<decltype(alternative)>;
+                        alternative.~Type();
+                    }, *this);
+                }
+
+                this->index_ = kVariantNpos;
+            } VARIANTX_EAT_SEMICOLON);
+
+        // Generating Non-Destructible Dtor version
+        VARIANTX_DESTRUCTOR(
+            Trait::Unavailable,
+            constexpr ~Dtor() noexcept = delete,
+            constexpr void Destroy() noexcept = delete
+        );
+
+        // clang-format on
     }  // namespace impl
 
     template <std::size_t Index, typename T>
