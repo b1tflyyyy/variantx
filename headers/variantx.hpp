@@ -6,12 +6,40 @@
 #include <functional>
 #include <fwd/variantx.hpp>
 #include <initializer_list>
+#include <sfinae_helperx.hpp>
 #include <type_traits>
 #include <utilities.hpp>
 #include <variantx-exceptions.hpp>
 
 namespace variantx
 {
+    template <typename T>
+    struct VariantSize<const T> : VariantSize<T>
+    {
+    };
+
+    template <typename T>
+    struct VariantSize<volatile T>
+    {
+        static_assert(false,
+                      "Deprecated since C++20 "
+                      "https://en.cppreference.com/w/cpp/utility/variant/variant_alternative.html");
+    };
+
+    template <typename T>
+    struct VariantSize<const volatile T>
+    {
+        static_assert(false,
+                      "Deprecated since C++20 "
+                      "https://en.cppreference.com/w/cpp/utility/variant/variant_alternative.html");
+    };
+
+    template <typename... Ts>
+    struct VariantSize<Variant<Ts...>>
+    {
+        static constexpr std::size_t kValue = sizeof...(Ts);
+    };
+
     namespace impl
     {
         template <typename... Ts>
@@ -57,6 +85,10 @@ namespace variantx
         #define VARIANTX_EAT_SEMICOLON static_assert(true, "")
         // clang-format on
 
+        struct ValuelessTag
+        {
+        };
+
         // Order and value matters
         enum class Trait : std::uint8_t
         {
@@ -92,10 +124,12 @@ namespace variantx
                 {kTrait<Ts, std::is_trivially_move_constructible, std::is_move_constructible>...});
 
             static constexpr Trait kCopyAssignableTrait = CommonTrait(
-                {kTrait<Ts, std::is_trivially_copy_assignable, std::is_copy_assignable>...});
+                {kCopyConstructibleTrait,
+                 kTrait<Ts, std::is_trivially_copy_assignable, std::is_copy_assignable>...});
 
             static constexpr Trait kMoveAssignableTrait = CommonTrait(
-                {kTrait<Ts, std::is_trivially_move_assignable, std::is_move_assignable>...});
+                {kMoveConstructibleTrait,
+                 kTrait<Ts, std::is_trivially_move_assignable, std::is_move_assignable>...});
 
             static constexpr Trait kDestructibleTrait =
                 CommonTrait({kTrait<Ts, std::is_trivially_destructible, std::is_destructible>...});
@@ -133,16 +167,13 @@ namespace variantx
                 }
             };
 
-            // TODO:
-            struct Variantx
+            struct Variant
             {
-                /*
-                template <std::size_t Index, typename TVariantx>
-                static constexpr auto&& GetAlternative(TVariantx&& variantx)
+                template <std::size_t Index, typename TVariant>
+                static constexpr auto&& GetAlternative(TVariant&& variant)
                 {
-                    return Base::GetAlternative(...)
+                    return Base::GetAlternative<Index>(std::forward<TVariant>(variant).impl_);
                 }
-                */
             };
         }  // namespace access
 
@@ -200,7 +231,7 @@ namespace variantx
                      */
                     static_assert(
                         std::conjunction_v<std::is_same<Func, Funcs>...>,
-                        "`variantx::visit` requires the visitor to have a single return type.");
+                        "`variantx::Visit` requires the visitor to have a single return type.");
                 }
 
                 template <typename... Funcs>
@@ -385,7 +416,7 @@ namespace variantx
                 // Internal visitor
                 template <typename Visitor, typename... Variants>
                 static constexpr decltype(auto) VisitAlternative(Visitor&& visitor,
-                                                                 Variants... variants)
+                                                                 Variants&&... variants)
                 {
                     return Base::VisitAlternative(
                         std::forward<Visitor>(visitor),
@@ -394,8 +425,8 @@ namespace variantx
 
                 // External visitor
                 template <typename Visitor, typename... Variants>
-                static decltype(auto) VisitValueAt(std::size_t index, Visitor&& visitor,
-                                                   Variants&&... variants)
+                static constexpr decltype(auto) VisitValueAt(std::size_t index, Visitor&& visitor,
+                                                             Variants&&... variants)
                 {
                     return VisitAlternativeAt(index,
                                               MakeValueVisitor(std::forward<Visitor>(visitor)),
@@ -403,9 +434,17 @@ namespace variantx
                 }
 
                 template <typename Visitor, typename... Variants>
-                static decltype(auto) VisitValue(Visitor&& visitor, Variants&&... variants)
+                static constexpr decltype(auto) VisitValue(Visitor&& visitor,
+                                                           Variants&&... variants)
                 {
                     return VisitAlternative(MakeValueVisitor(std::forward<Visitor>(visitor)),
+                                            std::forward<Variants>(variants)...);
+                }
+
+                template <typename Ret, typename Visitor, typename... Variants>
+                static constexpr Ret VisitValue(Visitor&& visitor, Variants&&... variants)
+                {
+                    return VisitAlternative(MakeValueVisitor<Ret>(std::forward<Visitor>(visitor)),
                                             std::forward<Variants>(variants)...);
                 }
 
@@ -414,7 +453,7 @@ namespace variantx
                 static constexpr void VisitExhaustiveVisitorCheck()
                 {
                     static_assert(std::is_invocable_v<Visitor, Values...>,
-                                  "`std::visit` requires the visitor to be exhaustive.");
+                                  "`variantx::Visit` requires the visitor to be exhaustive.");
                 }
 
                 template <typename Visitor>
@@ -423,11 +462,37 @@ namespace variantx
                     template <typename... Alternatives>
                     constexpr decltype(auto) operator()(Alternatives&&... alternatives) const
                     {
-                        VisitExhaustiveVisitorCheck<Visitor, decltype((std::forward<Alternatives>(
-                                                                 alternatives)))...>();
-                        // head_ , ? __value like in libcxx, alts<...>
+                        VisitExhaustiveVisitorCheck<
+                            Visitor,
+                            decltype((std::forward<Alternatives>(alternatives).value_))...>();
+
                         return std::invoke(std::forward<Visitor>(visitor_),
-                                           std::forward<Alternatives>(alternatives)...);
+                                           std::forward<Alternatives>(alternatives).value_...);
+                    }
+
+                    Visitor&& visitor_;  // NOLINT -> ref data member
+                };
+
+                template <typename Ret, typename Visitor>
+                struct ValueVisitorReturnType
+                {
+                    template <typename... Alternatives>
+                    constexpr Ret operator()(Alternatives&&... alternatives) const
+                    {
+                        VisitExhaustiveVisitorCheck<
+                            Visitor,
+                            decltype((std::forward<Alternatives>(alternatives).value_))...>();
+
+                        if constexpr (std::is_void_v<Ret>)
+                        {
+                            std::invoke(std::forward<Visitor>(visitor_),
+                                        std::forward<Alternatives>(alternatives).value_...);
+                        }
+                        else
+                        {
+                            return std::invoke(std::forward<Visitor>(visitor_),
+                                               std::forward<Alternatives>(alternatives).value_...);
+                        }
                     }
 
                     Visitor&& visitor_;  // NOLINT -> ref data member
@@ -438,8 +503,30 @@ namespace variantx
                 {
                     return ValueVisitor<Visitor>{std::forward<Visitor>(visitor)};
                 }
+
+                template <typename Ret, typename Visitor>
+                static constexpr auto MakeValueVisitor(Visitor&& visitor)
+                {
+                    return ValueVisitorReturnType<Ret, Visitor>{std::forward<Visitor>(visitor)};
+                }
             };
         }  // namespace visitation
+
+        template <std::size_t Index, typename T>
+        struct Alternative
+        {
+            using ValueType                     = T;
+            static constexpr std::size_t kIndex = Index;
+
+            template <typename... Args>
+            // NOLINTNEXTLINE -> unnamed parameter
+            explicit constexpr Alternative(std::in_place_t, Args&&... args)
+                : value_(std::forward<Args>(args)...)
+            {
+            }
+
+            ValueType value_;
+        };
 
         template <Trait TraitType, std::size_t Index, typename... Ts>
         union VariadicUnion;
@@ -458,9 +545,13 @@ namespace variantx
             friend struct access::VariadicUnion;                                                                \
                                                                                                                 \
         public:                                                                                                 \
+            constexpr explicit VariadicUnion([[maybe_unused]] ValuelessTag) noexcept : dummy_()                 \
+            {                                                                                                   \
+            }                                                                                                   \
+                                                                                                                \
             template <typename... Args>                                                                         \
             constexpr explicit VariadicUnion([[maybe_unused]] std::in_place_index_t<0>, Args&&... args)         \
-                : head_(std::forward<Args>(args)...)                                                            \
+                : head_(std::in_place_t(), std::forward<Args>(args)...)                                         \
             {                                                                                                   \
             }                                                                                                   \
                                                                                                                 \
@@ -471,29 +562,30 @@ namespace variantx
             }                                                                                                   \
                                                                                                                 \
             VariadicUnion(const VariadicUnion&) = default;                                                      \
-            VariadicUnion(VariadicUnion&&) noexcept = default;                                                  \
+            VariadicUnion(VariadicUnion&&)  = default;                                                          \
             VariadicUnion& operator=(const VariadicUnion&) = default;                                           \
-            VariadicUnion& operator=(VariadicUnion&&) noexcept = default;                                       \
+            VariadicUnion& operator=(VariadicUnion&&)  = default;                                               \
                                                                                                                 \
             destructor_definition;                                                                              \
                                                                                                                 \
                                                                                                                 \
         private:                                                                                                \
-            Head head_;                                                                                         \
+            char dummy_;                                                                                        \
+                                                                                                                \
+            Alternative<Index, Head> head_;                                                                     \
             VariadicUnion<destructible_trait, Index + 1, Tail...> tail_;                                        \
         }
         // clang-format on
 
         // Generating Trivially Destructible VariadicUnion version
-        VARIANTX_VARIADIC_UNION(Trait::TriviallyAvailable,
-                                constexpr ~VariadicUnion() noexcept = default);
+        VARIANTX_VARIADIC_UNION(Trait::TriviallyAvailable, constexpr ~VariadicUnion() = default);
 
         // Generating Non-Trivially Destructible VariadicUnion version
         VARIANTX_VARIADIC_UNION(
-            Trait::Available, constexpr ~VariadicUnion() noexcept {} VARIANTX_EAT_SEMICOLON);
+            Trait::Available, constexpr ~VariadicUnion() {} VARIANTX_EAT_SEMICOLON);
 
         // Generating Non-Destructible VariadicUnion version
-        VARIANTX_VARIADIC_UNION(Trait::Unavailable, constexpr ~VariadicUnion() noexcept = delete);
+        VARIANTX_VARIADIC_UNION(Trait::Unavailable, constexpr ~VariadicUnion() = delete);
 
         // clang-format off
         #undef VARIANTX_VARIADIC_UNION
@@ -507,6 +599,10 @@ namespace variantx
 
         public:
             using IndexType = std::size_t;
+
+            explicit constexpr Base(ValuelessTag tag) : index_(kVariantNpos), variadic_union_(tag)
+            {
+            }
 
             template <std::size_t Index, typename... Args>
             // NOLINTNEXTLINE -> unnamed parameter
@@ -529,9 +625,9 @@ namespace variantx
 
             static constexpr std::size_t Size() noexcept { return sizeof...(Ts); }
 
-        protected:  // NOLINT -> for readability
-            std::size_t                    index_;
-            VariadicUnion<Trait, 0, Ts...> variadic_union_;
+        protected:                                           // NOLINT -> for readability
+            std::size_t                    index_;           // NOLINT
+            VariadicUnion<Trait, 0, Ts...> variadic_union_;  // NOLINT
         };
 
         template <typename Traits, Trait = Traits::kDestructibleTrait>
@@ -551,15 +647,15 @@ namespace variantx
             using BaseType::operator=;                                                                                             \
                                                                                                                                    \
             Dtor(const Dtor&) = default;                                                                                           \
-            Dtor(Dtor&&) noexcept = default;                                                                                       \
+            Dtor(Dtor&&) = default;                                                                                                \
             Dtor& operator=(const Dtor&) = default;                                                                                \
-            Dtor& operator=(Dtor&&) noexcept = default;                                                                            \
+            Dtor& operator=(Dtor&&) = default;                                                                                     \
                                                                                                                                    \
             destructor_definition;                                                                                                 \
                                                                                                                                    \
         protected:                                                                                                                 \
             destroy; /* NOLINT */                                                                                                  \
-        };
+        }
         // clang-format on
 
         // clang-format off
@@ -567,8 +663,8 @@ namespace variantx
         // Generating Trivially Destructible Dtor version
         VARIANTX_DESTRUCTOR(
             Trait::TriviallyAvailable,
-            constexpr ~Dtor() noexcept = default,
-            void Destroy() noexcept
+            constexpr ~Dtor() = default,
+            constexpr void Destroy() noexcept
             {
                 this->index_ = kVariantNpos;
             } VARIANTX_EAT_SEMICOLON);
@@ -576,8 +672,8 @@ namespace variantx
         // Generating Non-Trivially Destructible Dtor version
         VARIANTX_DESTRUCTOR(
             Trait::Available,
-            constexpr ~Dtor() noexcept { Destroy(); } VARIANTX_EAT_SEMICOLON,
-            void Destroy() noexcept
+            constexpr ~Dtor() { Destroy(); } VARIANTX_EAT_SEMICOLON,
+            constexpr void Destroy() noexcept
             {
                 if (!this->ValuelessByException())
                 {
@@ -594,11 +690,363 @@ namespace variantx
         // Generating Non-Destructible Dtor version
         VARIANTX_DESTRUCTOR(
             Trait::Unavailable,
-            constexpr ~Dtor() noexcept = delete,
+            constexpr ~Dtor() = delete,
             constexpr void Destroy() noexcept = delete
         );
 
+        #undef VARIANTX_DESTRUCTOR
         // clang-format on
+
+        template <typename Traits>
+        class Ctor : public Dtor<Traits>
+        {
+            using BaseType = Dtor<Traits>;
+
+        public:
+            using BaseType::BaseType;
+            using BaseType::operator=;
+
+        protected:
+            template <typename Rhs>
+            static constexpr void GenericConstruct(Ctor& lhs, Rhs&& rhs)
+            {
+                lhs.Destroy();
+
+                if (!rhs.ValuelessByException())
+                {
+                    auto rhs_index = rhs.Index();
+                    visitation::Base::VisitAlternativeAt(
+                        rhs_index,
+                        [&lhs](auto&& rhs_alt)
+                        {
+                            std::construct_at(
+                                std::addressof(lhs.variadic_union_),
+                                std::in_place_index<std::decay_t<decltype(rhs_alt)>::kIndex>,
+                                std::forward<decltype(rhs_alt)>(rhs_alt).value_);
+                        },
+                        std::forward<Rhs>(rhs));
+
+                    lhs.index_ = rhs_index;
+                }
+            }
+        };
+
+        template <typename Traits, Trait = Traits::kMoveConstructibleTrait>
+        class MoveCtor;
+
+        // clang-format off
+        // NOLINTNEXTLINE
+        #define VARIANTX_MOVE_CTOR(move_constructible_trait, move_constructor_definition)               \
+        template <typename... Ts>                                                                       \
+        class MoveCtor<Traits<Ts...>, move_constructible_trait> : public Ctor<Traits<Ts...>>            \
+        {                                                                                               \
+            using BaseType = Ctor<Traits<Ts...>>;                                                       \
+                                                                                                        \
+        public:                                                                                         \
+            using BaseType::BaseType;                                                                   \
+            using BaseType::operator=;                                                                  \
+                                                                                                        \
+            MoveCtor(const MoveCtor&) = default;                                                        \
+            ~MoveCtor() = default;                                                                      \
+            MoveCtor& operator=(const MoveCtor&) = default;                                             \
+            MoveCtor& operator=(MoveCtor&&) = default;                                                  \
+                                                                                                        \
+            move_constructor_definition;                                                                \
+        }
+
+        VARIANTX_MOVE_CTOR(Trait::TriviallyAvailable,
+                           constexpr MoveCtor(MoveCtor&& that) = default);
+
+        VARIANTX_MOVE_CTOR(Trait::Available,
+                           constexpr MoveCtor(MoveCtor&& that) noexcept(std::conjunction_v<std::is_nothrow_move_constructible<Ts>...>) : MoveCtor(ValuelessTag())
+                           {
+                                this->GenericConstruct(*this, std::move(that));
+                           } VARIANTX_EAT_SEMICOLON);
+
+        VARIANTX_MOVE_CTOR(Trait::Unavailable,
+                           constexpr MoveCtor(MoveCtor&&) = delete);
+
+        #undef VARIANTX_MOVE_CTOR
+
+        template <typename Traits, Trait = Traits::kCopyConstructibleTrait>
+        class CopyCtor;
+
+        // NOLINTNEXTLINE
+        #define VARIANTX_COPY_CTOR(copy_constructible_trait, copy_constructor_definition)           \
+        template <typename... Ts>                                                                   \
+        class CopyCtor<Traits<Ts...>, copy_constructible_trait> : public MoveCtor<Traits<Ts...>>    \
+        {                                                                                           \
+            using BaseType = MoveCtor<Traits<Ts...>>;                                               \
+                                                                                                    \
+        public:                                                                                     \
+            using BaseType::BaseType;                                                               \
+            using BaseType::operator=;                                                              \
+                                                                                                    \
+            CopyCtor(CopyCtor&&)  = default;                                                        \
+            ~CopyCtor() = default;                                                                  \
+                                                                                                    \
+            CopyCtor& operator=(const CopyCtor&) = default;                                         \
+            CopyCtor& operator=(CopyCtor&&) = default;                                              \
+                                                                                                    \
+            copy_constructor_definition;                                                            \
+        }
+
+        VARIANTX_COPY_CTOR(Trait::TriviallyAvailable,
+                           constexpr CopyCtor(const CopyCtor& that) = default);
+
+        VARIANTX_COPY_CTOR(Trait::Available,
+                           constexpr CopyCtor(const CopyCtor& that) : CopyCtor(ValuelessTag())
+                           {
+                                this->GenericConstruct(*this, that);
+                           } VARIANTX_EAT_SEMICOLON);
+
+        VARIANTX_COPY_CTOR(Trait::Unavailable,
+                           constexpr CopyCtor(const CopyCtor& that) = delete);
+
+        #undef VARIANTX_COPY_CTOR
+        // clang-format on
+
+        template <typename Traits>
+        class Assignment : public CopyCtor<Traits>
+        {
+            using BaseType = CopyCtor<Traits>;
+
+        public:
+            using BaseType::BaseType;
+            using BaseType::operator=;
+
+            template <std::size_t Index, typename... Args>
+            constexpr auto& Emplace(Args&&... args)
+            {
+                this->Destroy();
+                std::construct_at(std::addressof(this->variadic_union_),
+                                  std::in_place_index_t<Index>(), std::forward<Args>(args)...);
+
+                this->index_ = Index;
+                return access::Base::GetAlternative<Index>(*this).value_;
+            }
+
+        protected:
+            template <std::size_t Index, typename T, typename Arg>
+            constexpr void AssignAlternative(Alternative<Index, T>& alternative, Arg&& arg)
+            {
+                if (this->Index() == Index)
+                {
+                    alternative.value_ = std::forward<Arg>(arg);
+                }
+                else
+                {
+                    struct
+                    {
+                        // NOLINTNEXTLINE -> unnamed parameter
+                        constexpr void operator()(std::true_type) const
+                        {
+                            this_->Emplace<Index>(std::forward<Arg>(arg_));
+                        }
+
+                        // NOLINTNEXTLINE -> unnamed parameter
+                        constexpr void operator()(std::false_type) const
+                        {
+                            this_->Emplace<Index>(T(std::forward<Arg>(arg_)));
+                        }
+
+                        Assignment* this_;  // NOLINT -> public visibility
+                        Arg&&       arg_;   // NOLINT -> public visibility
+                    } impl{this, std::forward<Arg>(arg)};
+
+                    impl(std::bool_constant<std::is_nothrow_constructible_v<T, Arg> ||
+                                            !std::is_nothrow_move_constructible_v<T>>());
+                }
+            }
+
+            template <typename That>
+            constexpr void GenericAssign(That&& that)
+            {
+                if (this->ValuelessByException() && that.ValuelessByException())
+                {
+                    // do nothing
+                }
+                else if (that.ValuelessByException())
+                {
+                    this->Destroy();
+                }
+                else
+                {
+                    visitation::Base::VisitAlternativeAt(
+                        that.Index(),
+                        [this](auto& this_alternative, auto&& that_alternative)
+                        {
+                            this->AssignAlternative(
+                                this_alternative,
+                                std::forward<decltype(that_alternative)>(that_alternative).value_);
+                        },
+                        *this, std::forward<That>(that));
+                }
+            }
+        };
+
+        template <typename Traits, Trait = Traits::kMoveAssignableTrait>
+        class MoveAssignment;
+
+        // clang-format off
+        // NOLINTNEXTLINE
+        #define VARIANTX_MOVE_ASSIGNMENT(move_assignable_trait, move_assignment_definition)             \
+        template <typename... Ts>                                                                       \
+        class MoveAssignment<Traits<Ts...>, move_assignable_trait> : public Assignment<Traits<Ts...>>   \
+        {                                                                                               \
+            using BaseType = Assignment<Traits<Ts...>>;                                                 \
+                                                                                                        \
+        public:                                                                                         \
+            using BaseType::BaseType;                                                                   \
+            using BaseType::operator=;                                                                  \
+                                                                                                        \
+            MoveAssignment(const MoveAssignment&) = default;                                            \
+            MoveAssignment(MoveAssignment&&) = default;                                                 \
+            ~MoveAssignment() = default;                                                                \
+            MoveAssignment& operator=(const MoveAssignment&) = default;                                 \
+                                                                                                        \
+            move_assignment_definition;                                                                 \
+        }
+
+        VARIANTX_MOVE_ASSIGNMENT(Trait::TriviallyAvailable,
+                                 constexpr MoveAssignment& operator=(MoveAssignment&& that)  = default);
+
+        VARIANTX_MOVE_ASSIGNMENT(Trait::Available,
+                                 constexpr MoveAssignment& operator=(MoveAssignment&& that) noexcept (((std::is_nothrow_move_constructible_v<Ts> && std::is_nothrow_move_assignable_v<Ts>) && ...))
+                                 {
+                                    this->GenericAssign(std::move(that));
+                                    return *this;
+                                 } VARIANTX_EAT_SEMICOLON);
+
+        VARIANTX_MOVE_ASSIGNMENT(Trait::Unavailable,
+                                 constexpr MoveAssignment& operator=(MoveAssignment&& that)  = delete);
+
+        #undef VARIANTX_MOVE_ASSIGNMENT
+        // clang-format on
+
+        // clang-format off
+        template <typename Traits, Trait = Traits::kCopyAssignableTrait>
+        class CopyAssignment;
+
+        // NOLINTNEXTLINE
+        #define VARIANTX_COPY_ASSIGNMENT(copy_assignable_trait, copy_assignment_definition)                 \
+        template <typename... Ts>                                                                           \
+        class CopyAssignment<Traits<Ts...>, copy_assignable_trait> : public MoveAssignment<Traits<Ts...>>   \
+        {                                                                                                   \
+            using BaseType = MoveAssignment<Traits<Ts...>>;                                                 \
+                                                                                                            \
+        public:                                                                                             \
+            using BaseType::BaseType;                                                                       \
+            using BaseType::operator=;                                                                      \
+                                                                                                            \
+            CopyAssignment(const CopyAssignment&) = default;                                                \
+            CopyAssignment(CopyAssignment&&) = default;                                                     \
+            ~CopyAssignment() = default;                                                                    \
+            CopyAssignment& operator=(CopyAssignment&&)  = default;                                         \
+                                                                                                            \
+            copy_assignment_definition;                                                                     \
+        }
+
+        VARIANTX_COPY_ASSIGNMENT(Trait::TriviallyAvailable,
+                                 constexpr CopyAssignment& operator=(const CopyAssignment& that) = default);
+
+        VARIANTX_COPY_ASSIGNMENT(Trait::Available,
+                                 constexpr CopyAssignment& operator=(const CopyAssignment& that)
+                                 {
+                                    this->GenericAssign(that);
+                                    return *this;
+                                 } VARIANTX_EAT_SEMICOLON);
+
+        VARIANTX_COPY_ASSIGNMENT(Trait::Unavailable,
+                                 constexpr CopyAssignment& operator=(const CopyAssignment& that) = delete);
+
+        #undef VARIANTX_COPY_ASSIGNMENT
+        // clang-format on
+
+        template <typename... Ts>
+        // NOLINTNEXTLINE
+        class Impl : public CopyAssignment<Traits<Ts...>>
+        {
+            using BaseType = CopyAssignment<Traits<Ts...>>;
+
+        public:
+            using BaseType::BaseType;
+
+            Impl(const Impl&)            = default;
+            Impl(Impl&&)                 = default;
+            Impl& operator=(const Impl&) = default;
+            Impl& operator=(Impl&&)      = default;
+
+            template <std::size_t Index, typename Arg>
+            constexpr void Assign(Arg&& arg)
+            {
+                this->AssignAlternative(access::Base::GetAlternative<Index>(*this),
+                                        std::forward<Arg>(arg));
+            }
+
+            // NOLINTNEXTLINE
+            inline constexpr void Swap(Impl& that)
+            {
+                if (this->ValuelessByException() && that.ValuelessByException())
+                {  // NOLINT
+                   // do nothing
+                }
+                else if (this->Index() == that.Index())
+                {
+                    visitation::Base::VisitAlternativeAt(
+                        this->Index(),
+                        [](auto& this_alt, auto& that_alt)
+                        {
+                            using std::swap;
+                            swap(this_alt.value_, that_alt.value_);
+                        },
+                        *this, that);
+                }
+                else
+                {
+                    Impl* lhs = this;
+                    Impl* rhs = std::addressof(that);
+
+                    if (lhs->MoveNothrow() || !rhs->MoveNothrow())
+                    {
+                        std::swap(lhs, rhs);
+                    }
+
+                    Impl tmp(std::move(*rhs));
+                    if constexpr (std::conjunction_v<std::is_nothrow_move_constructible<Ts>...>)
+                    {
+                        this->GenericConstruct(*rhs, std::move(*lhs));
+                    }
+                    else
+                    {
+                        try
+                        {
+                            this->GenericConstruct(*rhs, std::move(*lhs));
+                        }
+                        catch (...)
+                        {
+                            if (tmp.MoveNothrow())
+                            {
+                                this->GenericConstruct(*rhs, std::move(tmp));
+                            }
+
+                            throw;
+                        }
+                    }
+
+                    this->GenericConstruct(*lhs, std::move(tmp));
+                }
+            }
+
+        private:
+            // NOLINTNEXTLINE
+            constexpr inline bool MoveNothrow() const
+            {
+                // NOLINTNEXTLINE -> C-Style array
+                constexpr bool kResults[] = {std::is_nothrow_move_constructible_v<Ts>...};
+                return this->ValuelessByException() || kResults[this->Index()];
+            }
+        };
     }  // namespace impl
 
     template <std::size_t Index, typename T>
@@ -607,10 +1055,374 @@ namespace variantx
     template <std::size_t Index, typename T>
     using VariantAlternativeType = typename VariantAlternative<Index, T>::Type;
 
+    template <typename Visitor, typename... Variants,
+              typename = std::void_t<decltype(impl::AsVariant(std::declval<Variants>()))...>>
+    constexpr decltype(auto) Visit(Visitor&& visitor, Variants&&... variants);
+
+    template <typename Ret, typename Visitor, typename... Variants,
+              typename = std::void_t<decltype(impl::AsVariant(std::declval<Variants>()))...>>
+    constexpr Ret Visit(Visitor&& visitor, Variants&&... variants);
+
     template <typename... Ts>
     class Variant
+        : private SfinaeCtorBase<std::conjunction_v<std::is_copy_constructible<Ts>...>,
+                                 std::conjunction_v<std::is_move_constructible<Ts>...>>,
+          private SfinaeAssignBase<
+              ((std::is_copy_constructible_v<Ts> && std::is_copy_assignable_v<Ts>) && ...),
+              ((std::is_move_constructible_v<Ts> && std::is_move_assignable_v<Ts>) && ...)>
     {
+        static_assert(0 < sizeof...(Ts), "variant must consist of at least one alternative.");
+
+        static_assert(!std::conjunction_v<std::is_array<Ts>...>,
+                      "variant can not have an array type as an alternative.");
+
+        static_assert(!std::conjunction_v<std::is_reference<Ts>...>,
+                      "variant can not have a reference type as an alternative.");
+
+        static_assert(!std::conjunction_v<std::is_void<Ts>...>,
+                      "variant can not have a void type as an alternative.");
+
+        using FirstType = VariantAlternativeType<0, Variant>;
+
+    public:
+        // clang-format off
+        constexpr Variant()
+            noexcept(std::is_nothrow_default_constructible_v<FirstType>)
+            requires(std::is_default_constructible_v<FirstType>)
+            : impl_(std::in_place_index_t<0>())
+        {
+        }
+        // clang-format on
+
+        constexpr Variant(const Variant&) = default;
+        constexpr Variant(Variant&&)      = default;
+
+        // clang-format off
+        template <typename Arg,
+                  typename T = utilities::SelectorType<Arg, Ts...>,
+                  std::size_t Index = utilities::FindUnambiguousIndex<T, Ts...>::value>
+            requires (
+                !std::is_same_v<std::remove_cvref_t<Arg>, Variant> &&
+                !utilities::IsInplaceType<std::remove_cvref_t<Arg>>::value &&
+                !utilities::IsInplaceIndex<std::remove_cvref_t<Arg>>::value &&
+                std::is_constructible_v<T, Arg>
+            )
+        constexpr Variant(Arg&& arg) noexcept(std::is_nothrow_constructible_v<T, Arg>) // NOLINT -> non-explicit
+            : impl_(std::in_place_index_t<Index>(), std::forward<Arg>(arg))
+        {
+        }
+        // clang-format on
+
+        // clang-format off
+        template <std::size_t Index,
+                  typename... Args,
+                  typename = std::enable_if_t<(Index < sizeof...(Ts)), int>,
+                  typename T = VariantAlternativeType<Index, Variant<Ts...>>>
+            requires (
+                std::is_constructible_v<T, Args...>
+            )
+        // NOLINTNEXTLINE -> unnamed parameter
+        explicit constexpr Variant([[maybe_unused]] std::in_place_index_t<Index>, Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>)
+            : impl_(std::in_place_index_t<Index>(), std::forward<Args>(args)...)
+        {
+        }
+        // clang-format on
+
+        // clang-format off
+        template <std::size_t Index,
+                  typename U,
+                  typename... Args,
+                  typename = std::enable_if_t<(Index < sizeof...(Ts)), int>,
+                  typename T = VariantAlternativeType<Index, Variant<Ts...>>>
+            requires(
+                std::is_constructible_v<T, std::initializer_list<U>&, Args...>
+            )
+        // NOLINTNEXTLINE -> unnamed parameter
+        explicit constexpr Variant([[maybe_unused]] std::in_place_index_t<Index>,
+                                   std::initializer_list<U> list,
+                                   Args&&... args) noexcept(std::is_nothrow_constructible_v<T, std::initializer_list<U>&, Args...>)
+            : impl_(std::in_place_index_t<Index>(), list, std::forward<Args>(args)...)
+        {
+        }
+        // clang-format on
+
+        // clang-format off
+        template <typename T,
+                  typename... Args,
+                  std::size_t Index = utilities::FindUnambiguousIndex<T, Ts...>::value>
+            requires (
+                std::is_constructible_v<T, Args...>
+            )
+        // NOLINTNEXTLINE -> unnamed parameter
+        explicit constexpr Variant([[maybe_unused]] std::in_place_type_t<T>, Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>)
+            : impl_(std::in_place_index_t<Index>(), std::forward<Args>(args)...)
+        {
+        }
+        // clang-format on
+
+        // clang-format off
+        template <typename T,
+                  typename U,
+                  typename... Args,
+                  std::size_t Index = utilities::FindUnambiguousIndex<T, Ts...>::value>
+            requires (
+                std::is_constructible_v<T, std::initializer_list<U>&, Args...>
+            )
+        // NOLINTNEXTLINE -> unnamed parameter
+        explicit constexpr Variant([[maybe_unused]] std::in_place_type_t<T>,
+                                   std::initializer_list<U> list,
+                                   Args&&... args) noexcept(std::is_nothrow_constructible_v<T, std::initializer_list<U>&, Args...>)
+            : impl_(std::in_place_index_t<Index>(), list, std::forward<Args>(args)...)
+        {
+        }
+        // clang-format on
+
+        constexpr ~Variant() = default;
+
+        constexpr Variant& operator=(const Variant&) = default;
+        constexpr Variant& operator=(Variant&&)      = default;
+
+        // clang-format off
+        template <typename Arg,
+                  typename T = utilities::SelectorType<Arg, Ts...>,
+                  std::size_t Index = utilities::FindUnambiguousIndex<T, Ts...>::value>
+            requires (
+                !std::is_same_v<Variant, std::remove_cvref_t<Arg>> &&
+                std::is_assignable_v<T&, Arg> &&
+                std::is_constructible_v<T, Arg>
+            )
+        constexpr Variant& operator=(Arg&& arg) noexcept(
+            std::is_nothrow_assignable_v<T&, Arg> &&
+            std::is_nothrow_constructible_v<T, Arg>
+        )
+        {
+            impl_.template Assign<Index>(std::forward<Arg>(arg));
+            return *this;
+        }
+        // clang-format on
+
+        // clang-format off
+        template <std::size_t Index,
+                  typename... Args,
+                  typename T = VariantAlternativeType<Index, Variant<Ts...>>>
+            requires (
+                Index < sizeof...(Ts) &&
+                std::is_constructible_v<T, Args...>
+            )
+        constexpr T& Emplace(Args&&... args)
+        {
+            return impl_.template Emplace<Index>(std::forward<Args>(args)...);
+        }
+        // clang-format on
+
+        // clang-format off
+        template <std::size_t Index,
+                  typename U,
+                  typename... Args,
+                  typename T = VariantAlternativeType<Index, Variant<Ts...>>>
+            requires (
+                Index < sizeof...(Ts) &&
+                std::is_constructible_v<T, std::initializer_list<U>&, Args...>
+            )
+        constexpr T& Emplace(std::initializer_list<U> list, Args&&... args)
+        {
+            return impl_.template Emplace<Index>(list, std::forward<Args>(args)...);
+        }
+        // clang-format on
+
+        // clang-format off
+        template <typename T,
+                  typename... Args,
+                  std::size_t Index = utilities::FindUnambiguousIndex<T, Ts...>::value>
+            requires (
+                std::is_constructible_v<T, Args...>
+            )
+        constexpr T& Emplace(Args&&... args)
+        {
+            return impl_.template Emplace<Index>(std::forward<Args>(args)...);
+        }
+        // clang-format on
+
+        // clang-format off
+        template <typename T,
+                  typename U,
+                  typename... Args,
+                  std::size_t Index = utilities::FindUnambiguousIndex<T, Ts...>::value>
+            requires (
+                std::is_constructible_v<T, std::initializer_list<U>&, Args...>
+            )
+        constexpr T& Emplace(std::initializer_list<U>& list, Args&&... args)
+        {
+            return impl_.template Emplace<Index>(list, std::forward<Args>(args)...);
+        }
+        // clang-format on
+
+        constexpr bool ValuelessByException() const noexcept
+        {
+            return impl_.ValuelessByException();
+        }
+
+        constexpr std::size_t Index() const noexcept { return impl_.Index(); }
+
+        // NOLINTNEXTLINE
+        constexpr void swap(Variant& that) noexcept(
+            ((std::is_nothrow_move_constructible_v<Ts> && std::is_nothrow_swappable_v<Ts>) && ...))
+            requires(((std::is_move_constructible_v<Ts> && std::is_swappable_v<Ts>) && ...))
+        {
+            impl_.Swap(that.impl_);
+        }
+
+    private:
+        impl::Impl<Ts...> impl_;
+
+        friend struct impl::access::Variant;
+        friend struct impl::visitation::Variant;
     };
+
+    namespace impl
+    {
+        template <std::size_t Index, typename... Ts>
+        constexpr bool HoldsAlternative(const Variant<Ts...>& variant) noexcept
+        {
+            return Index == variant.Index();
+        }
+    }  // namespace impl
+
+    template <typename T, typename... Ts>
+    constexpr bool HoldsAlternative(const Variant<Ts...>& variant) noexcept
+    {
+        constexpr std::size_t kIndex = utilities::FindExactlyOne<T, Ts...>;
+        return impl::HoldsAlternative<kIndex>(variant);
+    }
+
+    namespace impl
+    {
+        template <std::size_t Index, typename TVariant>
+        constexpr auto&& GenericGet(TVariant&& variant)
+        {
+            using impl::access::Variant;
+            if (!impl::HoldsAlternative<Index>(variant))
+            {
+                throw BadVariantAccess();
+            }
+
+            return Variant::GetAlternative<Index>(std::forward<TVariant>(variant)).value_;
+        }
+    }  // namespace impl
+
+    template <std::size_t Index, typename... Ts>
+    constexpr VariantAlternativeType<Index, Variant<Ts...>>& Get(Variant<Ts...>& variant)
+    {
+        static_assert(Index < sizeof...(Ts));
+        static_assert(!std::is_void_v<VariantAlternativeType<Index, Variant<Ts...>>>);
+
+        return impl::GenericGet<Index>(variant);
+    }
+
+    template <std::size_t Index, typename... Ts>
+    constexpr VariantAlternativeType<Index, Variant<Ts...>>&& Get(Variant<Ts...>&& variant)
+    {
+        static_assert(Index < sizeof...(Ts));
+        static_assert(!std::is_void_v<VariantAlternativeType<Index, Variant<Ts...>>>);
+
+        return impl::GenericGet<Index>(std::move(variant));
+    }
+
+    template <std::size_t Index, typename... Ts>
+    constexpr const VariantAlternativeType<Index, Variant<Ts...>>& Get(
+        const Variant<Ts...>& variant)
+    {
+        static_assert(Index < sizeof...(Ts));
+        static_assert(!std::is_void_v<VariantAlternativeType<Index, Variant<Ts...>>>);
+
+        return impl::GenericGet<Index>(variant);
+    }
+
+    template <std::size_t Index, typename... Ts>
+    constexpr const VariantAlternativeType<Index, Variant<Ts...>>&& Get(
+        const Variant<Ts...>&& variant)
+    {
+        static_assert(Index < sizeof...(Ts));
+        static_assert(!std::is_void_v<VariantAlternativeType<Index, Variant<Ts...>>>);
+
+        return impl::GenericGet<Index>(std::move(variant));
+    }
+
+    template <typename T, typename... Ts>
+    constexpr T& Get(Variant<Ts...>& variant)
+    {
+        static_assert(!std::is_void_v<T>);
+        return variantx::Get<utilities::FindExactlyOne<T, Ts...>>(variant);
+    }
+
+    template <typename T, typename... Ts>
+    constexpr T&& Get(Variant<Ts...>&& variant)
+    {
+        static_assert(!std::is_void_v<T>);
+        return variantx::Get<utilities::FindExactlyOne<T, Ts...>>(std::move(variant));
+    }
+
+    template <typename T, typename... Ts>
+    constexpr const T& Get(const Variant<Ts...>& variant)
+    {
+        static_assert(!std::is_void_v<T>);
+        return variantx::Get<utilities::FindExactlyOne<T, Ts...>>(variant);
+    }
+
+    template <typename T, typename... Ts>
+    constexpr const T&& Get(const Variant<Ts...>&& variant)
+    {
+        static_assert(!std::is_void_v<T>);
+        return variantx::Get<utilities::FindExactlyOne<T, Ts...>>(std::move(variant));
+    }
+
+    namespace impl
+    {
+        template <std::size_t Index, typename TVariant>
+        constexpr auto* GenericGetIf(TVariant* variant) noexcept
+        {
+            using impl::access::Variant;
+
+            // specifically conditional operator
+            return variant != nullptr && HoldsAlternative<Index>(*variant)
+                       ? std::addressof(Variant::GetAlternative<Index>(*variant).value_)
+                       : nullptr;
+        }
+    }  // namespace impl
+
+    template <std::size_t Index, typename... Ts>
+    constexpr std::add_pointer_t<VariantAlternativeType<Index, Variant<Ts...>>> GetIf(
+        Variant<Ts...>* variant) noexcept
+    {
+        static_assert(Index < sizeof...(Ts));
+        static_assert(!std::is_void_v<VariantAlternativeType<Index, Variant<Ts...>>>);
+
+        return impl::GenericGetIf<Index>(variant);
+    }
+
+    template <std::size_t Index, typename... Ts>
+    constexpr std::add_pointer_t<const VariantAlternativeType<Index, Variant<Ts...>>> GetIf(
+        const Variant<Ts...>* variant) noexcept
+    {
+        static_assert(Index < sizeof...(Ts));
+        static_assert(!std::is_void_v<VariantAlternativeType<Index, Variant<Ts...>>>);
+
+        return impl::GenericGetIf<Index>(variant);
+    }
+
+    template <typename T, typename... Ts>
+    constexpr std::add_pointer_t<T> GetIf(Variant<Ts...>* variant) noexcept
+    {
+        static_assert(!std::is_void_v<T>);
+        return variantx::GetIf<utilities::FindExactlyOne<T, Ts...>>(variant);
+    }
+
+    template <typename T, typename... Ts>
+    constexpr std::add_pointer_t<const T> GetIf(const Variant<Ts...>* variant) noexcept
+    {
+        static_assert(!std::is_void_v<T>);
+        return variantx::GetIf<utilities::FindExactlyOne<T, Ts...>>(variant);
+    }
 
     template <std::size_t Index, typename... Ts>
     struct VariantAlternative<Index, Variant<Ts...>>
@@ -641,4 +1453,226 @@ namespace variantx
                       "Deprecated since C++20 "
                       "https://en.cppreference.com/w/cpp/utility/variant/variant_alternative.html");
     };
+
+    namespace impl
+    {
+        template <typename Operator>
+        struct Convert2Bool
+        {
+            template <typename T, typename U>
+            constexpr bool operator()(T&& fst, U&& snd) const
+            {
+                static_assert(
+                    std::is_convertible_v<
+                        decltype(Operator()(std::forward<T>(fst), std::forward<U>(fst))), bool>);
+
+                return Operator()(std::forward<T>(fst), std::forward<U>(snd));
+            }
+        };
+    }  // namespace impl
+
+    template <typename... Ts>
+    constexpr bool operator==(const Variant<Ts...>& lhs, const Variant<Ts...>& rhs)
+    {
+        using impl::visitation::Variant;
+        if (lhs.Index() != rhs.Index())
+        {
+            return false;
+        }
+        if (lhs.ValuelessByException())
+        {
+            return true;
+        }
+
+        return Variant::VisitValueAt(lhs.Index(), impl::Convert2Bool<std::equal_to<>>(), lhs, rhs);
+    }
+
+    template <typename... Ts>
+    constexpr bool operator!=(const Variant<Ts...>& lhs, const Variant<Ts...>& rhs)
+    {
+        using impl::visitation::Variant;
+        if (lhs.Index() != rhs.Index())
+        {
+            return true;
+        }
+        if (lhs.ValuelessByException())
+        {
+            return false;
+        }
+
+        return Variant::VisitValueAt(lhs.Index(), impl::Convert2Bool<std::not_equal_to<>>(), lhs,
+                                     rhs);
+    }
+
+    template <typename... Ts>
+    constexpr bool operator<(const Variant<Ts...>& lhs, const Variant<Ts...>& rhs)
+    {
+        using impl::visitation::Variant;
+        if (rhs.ValuelessByException())
+        {
+            return false;
+        }
+        if (lhs.ValuelessByException())
+        {
+            return true;
+        }
+        if (lhs.Index() < rhs.Index())
+        {
+            return true;
+        }
+        if (lhs.Index() > rhs.Index())
+        {
+            return false;
+        }
+
+        return Variant::VisitValueAt(lhs.Index(), impl::Convert2Bool<std::less<>>(), lhs, rhs);
+    }
+
+    template <typename... Ts>
+    constexpr bool operator>(const Variant<Ts...>& lhs, const Variant<Ts...>& rhs)
+    {
+        using impl::visitation::Variant;
+        if (lhs.ValuelessByException())
+        {
+            return false;
+        }
+        if (rhs.ValuelessByException())
+        {
+            return true;
+        }
+        if (lhs.Index() > rhs.Index())
+        {
+            return true;
+        }
+        if (lhs.Index() < rhs.Index())
+        {
+            return false;
+        }
+
+        return Variant::VisitValueAt(lhs.Index(), impl::Convert2Bool<std::greater<>>(), lhs, rhs);
+    }
+
+    template <typename... Ts>
+    constexpr bool operator<=(const Variant<Ts...>& lhs, const Variant<Ts...>& rhs)
+    {
+        using impl::visitation::Variant;
+        if (lhs.ValuelessByException())
+        {
+            return true;
+        }
+        if (rhs.ValuelessByException())
+        {
+            return false;
+        }
+        if (lhs.Index() < rhs.Index())
+        {
+            return true;
+        }
+        if (lhs.Index() > rhs.Index())
+        {
+            return false;
+        }
+
+        return Variant::VisitValueAt(lhs.Index(), impl::Convert2Bool<std::less_equal<>>(), lhs,
+                                     rhs);
+    }
+
+    template <typename... Ts>
+    constexpr bool operator>=(const Variant<Ts...>& lhs, const Variant<Ts...>& rhs)
+    {
+        using impl::visitation::Variant;
+        if (rhs.ValuelessByException())
+        {
+            return true;
+        }
+        if (lhs.ValuelessByException())
+        {
+            return false;
+        }
+        if (lhs.Index() > rhs.Index())
+        {
+            return true;
+        }
+        if (lhs.Index() < rhs.Index())
+        {
+            return false;
+        }
+
+        return Variant::VisitValueAt(lhs.Index(), impl::Convert2Bool<std::greater_equal<>>(), lhs,
+                                     rhs);
+    }
+
+    template <typename... Ts>
+        requires(std::three_way_comparable<Ts> && ...)
+    constexpr std::common_comparison_category_t<std::compare_three_way_result_t<Ts>...> operator<=>(
+        const Variant<Ts...>& lhs, const Variant<Ts...>& rhs)
+    {
+        using impl::visitation::Variant;
+        using ResultType =
+            std::common_comparison_category_t<std::compare_three_way_result_t<Ts>...>;
+
+        if (lhs.ValuelessByException() && rhs.ValuelessByException())
+        {
+            return std::strong_ordering::equal;
+        }
+        if (lhs.ValuelessByException())
+        {
+            return std::strong_ordering::less;
+        }
+        if (rhs.ValuelessByException())
+        {
+            return std::strong_ordering::greater;
+        }
+        if (auto result = lhs.Index() <=> rhs.Index(); result != 0)
+        {
+            return result;
+        }
+
+        auto three_way = []<typename T>(const T& fst, const T& snd) -> ResultType
+        { return fst <=> snd; };
+
+        return Variant::VisitValueAt(lhs.Index(), three_way, lhs, rhs);
+    }
+
+    namespace impl
+    {
+        template <typename... Variants>
+        // NOLINTNEXTLINE
+        constexpr void ThrowIfValueless(Variants&&... variants)
+        {
+            const bool valueless = (AsVariant(variants).ValuelessByException() || ...);
+            if (valueless)
+            {
+                throw variantx::BadVariantAccess();
+            }
+        }
+    }  // namespace impl
+
+    template <typename Visitor, typename... Variants, typename>
+    constexpr decltype(auto) Visit(Visitor&& visitor, Variants&&... variants)
+    {
+        using impl::visitation::Variant;
+
+        impl::ThrowIfValueless(std::forward<Variants>(variants)...);
+        return Variant::VisitValue(std::forward<Visitor>(visitor),
+                                   std::forward<Variants>(variants)...);
+    }
+
+    template <typename Ret, typename Visitor, typename... Variants, typename>
+    constexpr Ret Visit(Visitor&& visitor, Variants&&... variants)
+    {
+        using impl::visitation::Variant;
+
+        impl::ThrowIfValueless(std::forward<Variants>(variants)...);
+        return Variant::VisitValue<Ret>(std::forward<Visitor>(visitor),
+                                        std::forward<Variants>(variants)...);
+    }
+
+    template <typename... Ts>
+    // NOLINTNEXTLINE
+    constexpr auto swap(Variant<Ts...>& lhs, Variant<Ts...>& rhs) noexcept(noexcept(lhs.swap(rhs)))
+        -> decltype(lhs.swap(rhs))
+    {
+        return lhs.swap(rhs);
+    }
 }  // namespace variantx
