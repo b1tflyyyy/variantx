@@ -32,11 +32,19 @@ TEST(Variantx, StaticAssertions)
         IndexSequence{}, V1{});
 }
 
-#if 0  // NOLINT
+TEST(Variantx, RegularCtor)
+{
+    namespace vx = variantx;
+    using V      = vx::Variant<int, float, double>;
+
+    V variant(2);
+    EXPECT_EQ(2, vx::Get<0>(variant));
+}
+
 TEST(Variantx, ThrowOnCopy)
 {
     namespace vx = variantx;
-    namespace tu = test_utilities;
+    namespace tu = test_basic;
 
     vx::Variant<int, tu::ThrowOnCopy> x_variant;
 
@@ -66,7 +74,7 @@ TEST(Variantx, ThrowOnCopy)
 TEST(Variantx, GetIf)
 {
     namespace vx = variantx;
-    namespace tu = test_utilities;
+    namespace tu = test_basic;
 
     std::shared_ptr<tu::detail::CounterBlock> std_block;
     std::shared_ptr<tu::detail::CounterBlock> vx_block;
@@ -94,7 +102,7 @@ TEST(Variantx, GetIf)
 TEST(Variantx, Get)
 {
     namespace vx = variantx;
-    namespace tu = test_utilities;
+    namespace tu = test_basic;
 
     std::shared_ptr<tu::detail::CounterBlock> std_block;
     std::shared_ptr<tu::detail::CounterBlock> vx_block;
@@ -165,7 +173,7 @@ TEST(Variantx, Get)
 TEST(Variantx, EmplaceIndex)
 {
     namespace vx = variantx;
-    namespace tu = test_utilities;
+    namespace tu = test_basic;
 
     std::shared_ptr<tu::detail::CounterBlock> std_block_outer;
     std::shared_ptr<tu::detail::CounterBlock> vx_block_outer;
@@ -219,7 +227,7 @@ TEST(Variantx, EmplaceIndex)
 TEST(Variantx, EmplaceType)
 {
     namespace vx = variantx;
-    namespace tu = test_utilities;
+    namespace tu = test_basic;
 
     std::shared_ptr<tu::detail::CounterBlock> std_block_outer;
     std::shared_ptr<tu::detail::CounterBlock> vx_block_outer;
@@ -343,7 +351,7 @@ TEST(Variantx, IndexConstNonConst)
 TEST(Variantx, CopyMoveSemantics)
 {
     namespace vx = variantx;
-    namespace tu = test_utilities;
+    namespace tu = test_basic;
 
     using StdVariant = std::variant<tu::Counter, int, float>;
     using VxVariant  = vx::Variant<tu::Counter, int, float>;
@@ -394,4 +402,3 @@ TEST(Variantx, CopyMoveSemantics)
 
     ASSERT_EQ(*std_block, *vx_block);
 }
-#endif

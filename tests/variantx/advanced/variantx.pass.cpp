@@ -20,18 +20,17 @@
 // NOLINTBEGIN
 namespace advanced_test
 {
-#if 0
-    // TODO:
     TEST(traits, destructor)
     {
         using V1 = variantx::Variant<int, double, Trivial>;
         using V2 = variantx::Variant<int, std::string>;
         using V3 = variantx::Variant<char, long, V1>;
         using V4 = variantx::Variant<char, V2, int>;
+
         static_assert(std::is_trivially_destructible_v<V1>);
-        // static_assert(std::is_trivially_destructible_v<V2> == false);
+        static_assert(std::is_trivially_destructible_v<V2> == false);
         static_assert(std::is_trivially_destructible_v<V3>);
-        // static_assert(std::is_trivially_destructible_v<V4> == false);
+        static_assert(std::is_trivially_destructible_v<V4> == false);
     }
 
     TEST(traits, default_constructor)
@@ -41,13 +40,14 @@ namespace advanced_test
         using V3 = variantx::Variant<int, NoDefaultConstructor>;
         using V4 = variantx::Variant<ThrowingDefaultConstructor, int, double>;
         using V5 = variantx::Variant<int, double, ThrowingDefaultConstructor>;
-        EXPECT_TRUE(std::is_default_constructible_v<V1>);
-        EXPECT_FALSE(std::is_default_constructible_v<V2>);
-        EXPECT_TRUE(std::is_default_constructible_v<V3>);
-        EXPECT_TRUE(std::is_default_constructible_v<V4>);
-        EXPECT_TRUE(std::is_nothrow_default_constructible_v<V1>);
-        EXPECT_FALSE(std::is_nothrow_default_constructible_v<V4>);
-        EXPECT_TRUE(std::is_nothrow_default_constructible_v<V5>);
+
+        static_assert(std::is_default_constructible_v<V1>);
+        static_assert(std::is_default_constructible_v<V2> == false);
+        static_assert(std::is_default_constructible_v<V3>);
+        static_assert(std::is_default_constructible_v<V4>);
+        static_assert(std::is_nothrow_default_constructible_v<V1>);
+        static_assert(std::is_nothrow_default_constructible_v<V4> == false);
+        static_assert(std::is_nothrow_default_constructible_v<V5>);
     }
 
     TEST(traits, copy_constructor)
@@ -56,11 +56,12 @@ namespace advanced_test
         using V2 = variantx::Variant<std::string, std::vector<std::string>, int>;
         using V3 = variantx::Variant<int, double, Trivial>;
         using V4 = variantx::Variant<double, int, NonTrivialCopy>;
-        EXPECT_FALSE(std::is_copy_constructible_v<V1>);
-        EXPECT_TRUE(std::is_copy_constructible_v<V2>);
-        EXPECT_FALSE(std::is_trivially_copy_constructible_v<V2>);
-        EXPECT_TRUE(std::is_trivially_copy_constructible_v<V3>);
-        EXPECT_FALSE(std::is_trivially_copy_constructible_v<V4>);
+
+        static_assert(std::is_copy_constructible_v<V1> == false);
+        static_assert(std::is_copy_constructible_v<V2>);
+        static_assert(std::is_trivially_copy_constructible_v<V2> == false);
+        static_assert(std::is_trivially_copy_constructible_v<V3>);
+        static_assert(std::is_trivially_copy_constructible_v<V4> == false);
     }
 
     TEST(traits, move_constructor)
@@ -69,49 +70,58 @@ namespace advanced_test
         using V2 = variantx::Variant<double, std::string, int>;
         using V3 = variantx::Variant<int, Trivial, char>;
         using V4 = variantx::Variant<int, double, ThrowingMoveAssignmentWithoutMoveConstructor>;
-        EXPECT_FALSE(std::is_move_constructible_v<V1>);
-        EXPECT_TRUE(std::is_move_constructible_v<V2>);
-        EXPECT_TRUE(std::is_move_constructible_v<V3>);
-        EXPECT_TRUE(std::is_nothrow_move_constructible_v<V2>);
-        EXPECT_FALSE(std::is_trivially_move_constructible_v<V2>);
-        EXPECT_TRUE(std::is_trivially_move_constructible_v<V3>);
-        EXPECT_TRUE(std::is_move_constructible_v<V4>);
-        EXPECT_FALSE(std::is_nothrow_move_constructible_v<V4>);
+
+        static_assert(std::is_move_constructible_v<V1> == false);
+        static_assert(std::is_move_constructible_v<V2>);
+        static_assert(std::is_move_constructible_v<V3>);
+        static_assert(std::is_nothrow_move_constructible_v<V2>);
+        static_assert(std::is_trivially_move_constructible_v<V2> == false);
+        static_assert(std::is_trivially_move_constructible_v<V3>);
+        static_assert(std::is_move_constructible_v<V4>);
+        static_assert(std::is_nothrow_move_constructible_v<V4> == false);
     }
 
     TEST(traits, converting_constructor)
     {
         using V1 = variantx::Variant<std::string, std::vector<double>>;
-        EXPECT_FALSE(std::is_constructible_v<V1, std::size_t>);
-        EXPECT_TRUE(std::is_constructible_v<V1, const char*>);
-        EXPECT_TRUE(std::is_nothrow_constructible_v<V1, std::string&&>);
-        EXPECT_FALSE(std::is_nothrow_constructible_v<V1, const char*>);
+
+        static_assert(std::is_constructible_v<V1, std::size_t> == false);
+        static_assert(std::is_constructible_v<V1, const char*>);
+        static_assert(std::is_nothrow_constructible_v<V1, std::string&&>);
+        static_assert(std::is_nothrow_constructible_v<V1, const char*> == false);
     }
 
     TEST(traits, in_place_type)
     {
         using V1 = variantx::Variant<int, float, std::string, Trivial, std::vector<int>,
                                      NoDefaultConstructor>;
-        EXPECT_FALSE(std::is_constructible_v<
-                     V1, variantx::InPlaceType<ThrowingMoveAssignmentWithoutMoveConstructor>>);
-        EXPECT_TRUE(std::is_constructible_v<V1, variantx::InPlaceType<Trivial>>);
-        EXPECT_FALSE(std::is_constructible_v<V1, variantx::InPlaceType<NoDefaultConstructor>>);
-        EXPECT_TRUE(
-            std::is_constructible_v<V1, variantx::InPlaceType<std::vector<int>>, size_t, int>);
-        EXPECT_TRUE(std::is_constructible_v<V1, variantx::InPlaceType<std::vector<int>>, size_t>);
-        EXPECT_TRUE(std::is_constructible_v<V1, variantx::InPlaceType<std::string>>);
+
+        static_assert(std::is_constructible_v<
+                          V1, std::in_place_type_t<ThrowingMoveAssignmentWithoutMoveConstructor>> ==
+                      false);
+
+        static_assert(std::is_constructible_v<V1, std::in_place_type_t<Trivial>>);
+        static_assert(std::is_constructible_v<V1, std::in_place_type_t<NoDefaultConstructor>> ==
+                      false);
+
+        static_assert(
+            std::is_constructible_v<V1, std::in_place_type_t<std::vector<int>>, size_t, int>);
+
+        static_assert(std::is_constructible_v<V1, std::in_place_type_t<std::vector<int>>, size_t>);
+        static_assert(std::is_constructible_v<V1, std::in_place_type_t<std::string>>);
     }
 
     TEST(traits, in_place_index)
     {
         using V1 = variantx::Variant<int, float, std::string, Trivial, std::vector<int>,
                                      NoDefaultConstructor>;
-        EXPECT_FALSE(std::is_constructible_v<V1, variantx::InPlaceIndex<1337>>);
-        EXPECT_TRUE(std::is_constructible_v<V1, variantx::InPlaceIndex<3>>);
-        EXPECT_FALSE(std::is_constructible_v<V1, variantx::InPlaceIndex<5>>);
-        EXPECT_TRUE(std::is_constructible_v<V1, variantx::InPlaceIndex<4>, size_t, int>);
-        EXPECT_TRUE(std::is_constructible_v<V1, variantx::InPlaceIndex<4>, size_t>);
-        EXPECT_TRUE(std::is_constructible_v<V1, variantx::InPlaceIndex<3>>);
+
+        static_assert(std::is_constructible_v<V1, std::in_place_index_t<1337>> == false);
+        static_assert(std::is_constructible_v<V1, std::in_place_index_t<3>>);
+        static_assert(std::is_constructible_v<V1, std::in_place_index_t<5>> == false);
+        static_assert(std::is_constructible_v<V1, std::in_place_index_t<4>, size_t, int>);
+        static_assert(std::is_constructible_v<V1, std::in_place_index_t<4>, size_t>);
+        static_assert(std::is_constructible_v<V1, std::in_place_index_t<3>>);
     }
 
     TEST(traits, copy_assignment)
@@ -122,15 +132,18 @@ namespace advanced_test
         using V4 = variantx::Variant<double, NonTrivialCopy, bool>;
         using V5 = variantx::Variant<int, short, char, Trivial, bool>;
         using V6 = variantx::Variant<int, double, NoCopy>;
-        EXPECT_FALSE(std::is_copy_assignable_v<V1>);
-        EXPECT_FALSE(std::is_copy_assignable_v<V2>);
-        EXPECT_TRUE(std::is_copy_assignable_v<V3>);
-        EXPECT_TRUE(std::is_copy_assignable_v<V4>);
-        EXPECT_TRUE(std::is_copy_assignable_v<V5>);
-        EXPECT_FALSE(std::is_trivially_copy_assignable_v<V3>);
-        EXPECT_FALSE(std::is_trivially_copy_assignable_v<V4>);
-        EXPECT_TRUE(std::is_trivially_copy_assignable_v<V5>);
-        EXPECT_FALSE(std::is_copy_assignable_v<V6>);
+
+        static_assert(std::is_trivially_copy_assignable_v<NonTrivialCopy>);
+        static_assert(std::is_copy_assignable_v<NonTrivialCopy>);
+        static_assert(std::is_copy_assignable_v<V1> == false);
+        static_assert(std::is_copy_assignable_v<V2> == false);
+        static_assert(std::is_copy_assignable_v<V3>);
+        static_assert(std::is_copy_assignable_v<V4>);
+        static_assert(std::is_copy_assignable_v<V5>);
+        static_assert(std::is_trivially_copy_assignable_v<V3> == false);
+        static_assert(std::is_trivially_copy_assignable_v<V4> == false);
+        static_assert(std::is_trivially_copy_assignable_v<V5>);
+        static_assert(std::is_copy_assignable_v<V6> == false);
     }
 
     TEST(traits, move_assignment)
@@ -145,34 +158,36 @@ namespace advanced_test
         using V7 = variantx::Variant<int, ThrowingMoveAssignment, double>;
         using V8 = variantx::Variant<int, double, NoMove>;
         using V9 = variantx::Variant<NonTrivialCopyWithTrivialMove>;
-        EXPECT_FALSE(std::is_move_assignable_v<V1>);
-        EXPECT_FALSE(std::is_move_assignable_v<V2>);
-        EXPECT_TRUE(std::is_move_assignable_v<V3>);
-        EXPECT_TRUE(std::is_move_assignable_v<V4>);
-        EXPECT_TRUE(std::is_move_assignable_v<V5>);
-        EXPECT_FALSE(std::is_trivially_move_assignable_v<V3>);
-        EXPECT_FALSE(std::is_trivially_move_assignable_v<V4>);
-        EXPECT_TRUE(std::is_trivially_move_assignable_v<V5>);
-        EXPECT_TRUE(std::is_move_assignable_v<V6>);
-        EXPECT_TRUE(std::is_move_assignable_v<V7>);
-        EXPECT_FALSE(std::is_nothrow_move_assignable_v<V6>);
-        EXPECT_FALSE(std::is_nothrow_move_assignable_v<V7>);
-        EXPECT_TRUE(std::is_nothrow_move_assignable_v<V3>);
-        EXPECT_TRUE(std::is_nothrow_move_assignable_v<V4>);
-        EXPECT_TRUE(std::is_nothrow_move_assignable_v<V5>);
-        EXPECT_FALSE(std::is_move_assignable_v<V8>);
-        EXPECT_TRUE(std::is_trivially_move_assignable_v<V9>);
+
+        static_assert(std::is_move_assignable_v<V1> == false);
+        static_assert(std::is_move_assignable_v<V2> == false);
+        static_assert(std::is_move_assignable_v<V3>);
+        static_assert(std::is_move_assignable_v<V4>);
+        static_assert(std::is_move_assignable_v<V5>);
+        static_assert(std::is_trivially_move_assignable_v<V3> == false);
+        static_assert(std::is_trivially_move_assignable_v<V4> == false);
+        static_assert(std::is_trivially_move_assignable_v<V5>);
+        static_assert(std::is_move_assignable_v<V6>);
+        static_assert(std::is_move_assignable_v<V7>);
+        static_assert(std::is_nothrow_move_assignable_v<V6> == false);
+        static_assert(std::is_nothrow_move_assignable_v<V7> == false);
+        static_assert(std::is_nothrow_move_assignable_v<V3>);
+        static_assert(std::is_nothrow_move_assignable_v<V4>);
+        static_assert(std::is_nothrow_move_assignable_v<V5>);
+        static_assert(std::is_move_assignable_v<V8> == false);
+        static_assert(std::is_trivially_move_assignable_v<V9>);
     }
 
     TEST(traits, converting_assignment)
     {
         using V1 = variantx::Variant<std::string, std::vector<char>, bool>;
-        EXPECT_TRUE(std::is_assignable_v<V1&, std::string&&>);
-        EXPECT_TRUE(std::is_assignable_v<V1&, const char*>);
-        EXPECT_FALSE(std::is_assignable_v<V1&, size_t>);
-        EXPECT_TRUE(std::is_nothrow_assignable_v<V1&, std::string&&>);
-        EXPECT_FALSE(std::is_nothrow_assignable_v<V1&, const std::string&>);
-        EXPECT_FALSE(std::is_assignable_v<V1&, double*>);
+
+        static_assert(std::is_assignable_v<V1&, std::string&&>);
+        static_assert(std::is_assignable_v<V1&, const char*>);
+        static_assert(std::is_assignable_v<V1&, size_t> == false);
+        static_assert(std::is_nothrow_assignable_v<V1&, std::string&&>);
+        static_assert(std::is_nothrow_assignable_v<V1&, const std::string&> == false);
+        static_assert(std::is_assignable_v<V1&, double*> == false);
     }
 
     TEST(traits, swap)
@@ -182,61 +197,67 @@ namespace advanced_test
         using VariantNonMoveAssignable =
             variantx::Variant<MoveConstructorWithoutMoveAssignment, int>;
 
-        EXPECT_TRUE(std::is_nothrow_swappable_v<VariantWithNothrowSwap>);
-        EXPECT_TRUE(std::is_nothrow_swappable_v<VariantNonMoveAssignable>);
-        EXPECT_FALSE(std::is_nothrow_swappable_v<VariantWithThrowingSwap>);
+        static_assert(std::is_nothrow_swappable_v<VariantWithNothrowSwap>);
+        static_assert(std::is_nothrow_swappable_v<VariantNonMoveAssignable>);
+        static_assert(std::is_nothrow_swappable_v<VariantWithThrowingSwap> == false);
     }
 
     TEST(traits, variant_size)
     {
         using V1 = variantx::Variant<int, std::string,
                                      variantx::Variant<int, std::vector<int>, size_t>, bool>;
-        EXPECT_EQ(variantx::variant_size<V1>, 4);
-        EXPECT_EQ(variantx::variant_size<V1>, variantx::variant_size<const V1>);
+
+        static_assert(variantx::kVariantSizeV<V1> == 4);
+        static_assert(variantx::kVariantSizeV<V1> == variantx::kVariantSizeV<const V1>);
     }
 
     TEST(traits, variant_alternative)
     {
         using V1 = variantx::Variant<int, std::string,
                                      variantx::Variant<int, std::vector<int>, size_t>, bool>;
-        using T1 = variantx::variant_alternative<1, V1>;
-        using T2 = variantx::variant_alternative<1, const V1>;
-        EXPECT_TRUE(std::is_same_v<T1, std::string>);
-        EXPECT_TRUE(std::is_same_v<const T1, T2>);
-    }
 
-    static_assert(variantx::Variant<int>().index() == 0, "Constexpr empty ctor failed");
-    static_assert(variantx::holds_alternative<int>(variantx::Variant<int, double>()),
-                  "Constexpr empty ctor holds_alternative failed");
-    static_assert(variantx::holds_alternative<int>(variantx::Variant<int>()),
-                  "Constexpr empty ctor holds_alternative failed");
-    static_assert(holds_alternative<int>(variantx::Variant<int>()),
-                  "Constexpr empty ctor holds_alternative ADL failed");
-    static_assert(variantx::Variant<int, double>().index() == 0, "Constexpr empty ctor failed");
+        using T1 = variantx::VariantAlternativeType<1, V1>;
+        using T2 = variantx::VariantAlternativeType<1, const V1>;
+
+        static_assert(std::is_same_v<T1, std::string>);
+        static_assert(std::is_same_v<const T1, T2>);
+
+        static_assert(variantx::Variant<int>().Index() == 0, "Constexpr empty ctor failed");
+        static_assert(variantx::HoldsAlternative<int>(variantx::Variant<int, double>()),
+                      "Constexpr empty ctor HoldsAlternative failed");
+        static_assert(variantx::HoldsAlternative<int>(variantx::Variant<int>()),
+                      "Constexpr empty ctor HoldsAlternative failed");
+        static_assert(HoldsAlternative<int>(variantx::Variant<int>()),
+                      "Constexpr empty ctor HoldsAlternative ADL failed");
+        static_assert(variantx::Variant<int, double>().Index() == 0, "Constexpr empty ctor failed");
+    }
 
     TEST(correctness, empty_ctor)
     {
         variantx::Variant<int, double> v;
-        ASSERT_TRUE(v.index() == 0);
-        ASSERT_TRUE(holds_alternative<int>(v));
+
+        ASSERT_TRUE(v.Index() == 0);
+        ASSERT_TRUE(HoldsAlternative<int>(v));
     }
 
     TEST(correctness, converting_ctor)
     {
         variantx::Variant<std::string, long, std::string, char, std::string, int, std::string> v(
             123);
-        ASSERT_TRUE(v.index() == 5);
-        ASSERT_TRUE(holds_alternative<int>(v));
-        ASSERT_TRUE(get<int>(v) == 123);
+
+        ASSERT_TRUE(v.Index() == 5);
+        ASSERT_TRUE(HoldsAlternative<int>(v));
+        ASSERT_TRUE(Get<int>(v) == 123);
     }
 
     TEST(correctness, const_types_copy)
     {
-        variantx::Variant<int, const NonTrivialCopy> v1(variantx::in_place_index<1>, 0);
+        variantx::Variant<int, const NonTrivialCopy> v1(std::in_place_index<1>, 0);
         variantx::Variant<int, const NonTrivialCopy> v2(v1);
-        ASSERT_TRUE(v2.index() == 1);
-        ASSERT_TRUE(holds_alternative<const NonTrivialCopy>(v2));
-        ASSERT_TRUE(get<1>(v2).x == 1);
+
+        ASSERT_TRUE(v2.Index() == 1);
+        ASSERT_TRUE(HoldsAlternative<const NonTrivialCopy>(v2));
+        ASSERT_TRUE(Get<1>(v2).x == 1);
     }
 
     TEST(correctness, const_types_move)
@@ -250,26 +271,27 @@ namespace advanced_test
             int x;
         };
 
-        variantx::Variant<int, const NonTrivialMoveConstructor> v1(variantx::in_place_index<1>, 0);
+        variantx::Variant<int, const NonTrivialMoveConstructor> v1(std::in_place_index<1>, 0);
         variantx::Variant<int, const NonTrivialMoveConstructor> v2(std::move(v1));
-        ASSERT_TRUE(v2.index() == 1);
-        ASSERT_TRUE(holds_alternative<const NonTrivialMoveConstructor>(v2));
-        ASSERT_TRUE(get<1>(v2).x == 1);
+
+        ASSERT_TRUE(v2.Index() == 1);
+        ASSERT_TRUE(HoldsAlternative<const NonTrivialMoveConstructor>(v2));
+        ASSERT_TRUE(Get<1>(v2).x == 1);
     }
 
     static constexpr bool simple_copy_ctor_test()
     {
         variantx::Variant<int, double> x{42.0};
         variantx::Variant<int, double> other{x};
-        if (x.index() != other.index())
+        if (x.Index() != other.Index())
         {
             return false;
         }
-        if (get<1>(x) != get<1>(other))
+        if (Get<1>(x) != Get<1>(other))
         {
             return false;
         }
-        if (!holds_alternative<double>(x) || !holds_alternative<double>(other))
+        if (!HoldsAlternative<double>(x) || !HoldsAlternative<double>(other))
         {
             return false;
         }
@@ -282,18 +304,18 @@ namespace advanced_test
 
     TEST(correctness, copy_constructor_without_default)
     {
-        variantx::Variant<NoDefaultConstructor, NonTrivialCopy> orig(variantx::in_place_index<1>,
-                                                                     123);
+        variantx::Variant<NoDefaultConstructor, NonTrivialCopy> orig(std::in_place_index<1>, 123);
         variantx::Variant<NoDefaultConstructor, NonTrivialCopy> copy(orig);
-        ASSERT_EQ(orig.index(), copy.index());
-        ASSERT_EQ(get<1>(orig).x + 1, get<NonTrivialCopy>(copy).x);
+
+        ASSERT_EQ(orig.Index(), copy.Index());
+        ASSERT_EQ(Get<1>(orig).x + 1, Get<NonTrivialCopy>(copy).x);
     }
 
     static constexpr bool direct_init_copy_ctor()
     {
         variantx::Variant<NoCopyAssignment> x;
         variantx::Variant<NoCopyAssignment> other{x};
-        if (!holds_alternative<NoCopyAssignment>(x) || !holds_alternative<NoCopyAssignment>(other))
+        if (!HoldsAlternative<NoCopyAssignment>(x) || !HoldsAlternative<NoCopyAssignment>(other))
         {
             return false;
         }
@@ -315,8 +337,8 @@ namespace advanced_test
         {
             variantx::Variant<NoCopyAssignment> x;
             variantx::Variant<NoCopyAssignment> other{std::move(x)};
-            if (!holds_alternative<NoCopyAssignment>(x) ||
-                !holds_alternative<NoCopyAssignment>(other))
+            if (!HoldsAlternative<NoCopyAssignment>(x) ||
+                !HoldsAlternative<NoCopyAssignment>(other))
             {
                 return false;
             }
@@ -324,7 +346,7 @@ namespace advanced_test
         {
             variantx::Variant<int, double> x{42};
             variantx::Variant<int, double> y = std::move(x);
-            if (x.index() != y.index() || x.index() != 0 || get<0>(x) != get<0>(y))
+            if (x.Index() != y.Index() || x.Index() != 0 || Get<0>(x) != Get<0>(y))
             {
                 return false;
             }
@@ -340,8 +362,8 @@ namespace advanced_test
 
         variantx::Variant<CoinWrapper> x;
         variantx::Variant<CoinWrapper> y = std::move(x);
-        ASSERT_TRUE(!get<0>(x).has_coins());
-        ASSERT_TRUE(get<0>(y).has_coins() == 1);
+        ASSERT_TRUE(!Get<0>(x).has_coins());
+        ASSERT_TRUE(Get<0>(y).has_coins() == 1);
     }
 
     static constexpr bool simple_value_move_ctor()
@@ -349,7 +371,7 @@ namespace advanced_test
         {
             OnlyMovable                    x;
             variantx::Variant<OnlyMovable> y(std::move(x));
-            if (x.has_coin() || !get<0>(y).has_coin())
+            if (x.has_coin() || !Get<0>(y).has_coin())
             {
                 return false;
             }
@@ -357,7 +379,7 @@ namespace advanced_test
         {
             CoinWrapper                    x;
             variantx::Variant<CoinWrapper> y(std::move(x));
-            if (x.has_coins() || !get<0>(y).has_coins())
+            if (x.has_coins() || !Get<0>(y).has_coins())
             {
                 return false;
             }
@@ -371,33 +393,34 @@ namespace advanced_test
     {
         simple_value_move_ctor();
         variantx::Variant<int, CoinWrapper> x(Coin{});
-        ASSERT_TRUE(x.index() == 0);
+
+        ASSERT_TRUE(x.Index() == 0);
     }
 
     TEST(correctness, alternative_selection)
     {
         {
             variantx::Variant<char, std::optional<char16_t>> v = u'\u2043';
-            ASSERT_EQ(v.index(), 1);
+            ASSERT_EQ(v.Index(), 1);
         }
         {
             double                                                 d = 3.14;
             variantx::Variant<int, std::reference_wrapper<double>> v = d;
-            ASSERT_EQ(v.index(), 1);
+            ASSERT_EQ(v.Index(), 1);
         }
         // For the brave and true
         {
             // See NB in #4 https://en.cppreference.com/w/cpp/utility/variant/variant
             variantx::Variant<bool, std::string> v("asdasd");
-            ASSERT_EQ(v.index(), 1);  // Overload resolution is not your friend anymore
+            ASSERT_EQ(v.Index(), 1);  // Overload resolution is not your friend anymore
         }
         {
             variantx::Variant<long, double, float> v = 0;
-            ASSERT_EQ(v.index(), 0);
+            ASSERT_EQ(v.Index(), 0);
         }
         {
             variantx::Variant<std::vector<int>, bool, std::string> v(true);
-            ASSERT_EQ(v.index(), 1);
+            ASSERT_EQ(v.Index(), 1);
         }
         {
             struct ToStruct
@@ -412,33 +435,32 @@ namespace advanced_test
             };
 
             variantx::Variant<double, ToStruct> v(FromStruct{});
-            ASSERT_EQ(v.index(), 1);
+            ASSERT_EQ(v.Index(), 1);
         }
     }
 
-    // TODO: refactor this test
-    TEST(correctness, valueless_by_exception)
+    TEST(correctness, ValuelessByException)
     {
         using V = variantx::Variant<std::vector<int>, ThrowingMoveAssignmentWithoutMoveConstructor>;
         auto v1 = std::vector{1, 2, 3};
         V    v  = v1;
         ASSERT_ANY_THROW({
-            V tmp(variantx::in_place_index<1>);
+            V tmp(std::in_place_index<1>);
             v = std::move(tmp);
         });
-        ASSERT_TRUE(v.valueless_by_exception());
+        ASSERT_TRUE(v.ValuelessByException());
         auto v2 = std::vector{4, 5, 6};
         V    w  = v2;
-        ASSERT_FALSE(w.valueless_by_exception());
-        ASSERT_EQ(get<std::vector<int>>(w), v2);
+        ASSERT_FALSE(w.ValuelessByException());
+        ASSERT_EQ(Get<std::vector<int>>(w), v2);
         w.swap(v);
-        ASSERT_TRUE(w.valueless_by_exception());
-        ASSERT_FALSE(v.valueless_by_exception());
-        ASSERT_EQ(get<0>(v), v2);
+        ASSERT_TRUE(w.ValuelessByException());
+        ASSERT_FALSE(v.ValuelessByException());
+        ASSERT_EQ(Get<0>(v), v2);
         w.swap(v);
-        ASSERT_TRUE(v.valueless_by_exception());
-        ASSERT_FALSE(w.valueless_by_exception());
-        ASSERT_EQ(get<0>(w), v2);
+        ASSERT_TRUE(v.ValuelessByException());
+        ASSERT_FALSE(w.ValuelessByException());
+        ASSERT_EQ(Get<0>(w), v2);
     }
 
     TEST(correctness, assign)
@@ -451,7 +473,7 @@ namespace advanced_test
         std::string                                    s = "here comes some std::string";
         variantx::Variant<std::string, BruhConversion> v = s;
         ASSERT_ANY_THROW(v = 42);
-        ASSERT_EQ(get<0>(v), s);
+        ASSERT_EQ(Get<0>(v), s);
     }
 
     TEST(correctness, visit)
@@ -461,7 +483,7 @@ namespace advanced_test
         V    v2         = 1337L;
         V    v3         = 0.5;
         bool was_called = false;
-        variantx::visit(
+        variantx::Visit(
             [&](int i, long l, double d)
             {
                 ASSERT_EQ(i, 42);
@@ -480,7 +502,7 @@ namespace advanced_test
         V    v2         = 1337L;
         V    v3         = 0.5;
         bool was_called = false;
-        visit(
+        Visit(
             [&](int i, long l, double d)
             {
                 ASSERT_EQ(i, 42);
@@ -492,34 +514,34 @@ namespace advanced_test
         ASSERT_TRUE(was_called);
     }
 
-    TEST(correctness, get)
+    TEST(correctness, Get)
     {
-        variantx::Variant<std::string, int, float> v(variantx::in_place_index<1>, 42);
+        variantx::Variant<std::string, int, float> v(std::in_place_index<1>, 42);
 
-        ASSERT_EQ(variantx::get<1>(v), 42);
-        ASSERT_EQ(variantx::get<1>(std::as_const(v)), 42);
-        ASSERT_EQ(variantx::get<1>(std::move(v)), 42);
-        ASSERT_EQ(variantx::get<1>(std::move(std::as_const(v))), 42);
+        ASSERT_EQ(variantx::Get<1>(v), 42);
+        ASSERT_EQ(variantx::Get<1>(std::as_const(v)), 42);
+        ASSERT_EQ(variantx::Get<1>(std::move(v)), 42);
+        ASSERT_EQ(variantx::Get<1>(std::move(std::as_const(v))), 42);
 
-        ASSERT_EQ(variantx::get<int>(v), 42);
-        ASSERT_EQ(variantx::get<int>(std::as_const(v)), 42);
-        ASSERT_EQ(variantx::get<int>(std::move(v)), 42);
-        ASSERT_EQ(variantx::get<int>(std::move(std::as_const(v))), 42);
+        ASSERT_EQ(variantx::Get<int>(v), 42);
+        ASSERT_EQ(variantx::Get<int>(std::as_const(v)), 42);
+        ASSERT_EQ(variantx::Get<int>(std::move(v)), 42);
+        ASSERT_EQ(variantx::Get<int>(std::move(std::as_const(v))), 42);
     }
 
-    TEST(correctness, get_adl)
+    TEST(correctness, Get_adl)
     {
-        variantx::Variant<std::string, int, float> v(variantx::in_place_index<1>, 42);
+        variantx::Variant<std::string, int, float> v(std::in_place_index<1>, 42);
 
-        ASSERT_EQ(get<1>(v), 42);
-        ASSERT_EQ(get<1>(std::as_const(v)), 42);
-        ASSERT_EQ(get<1>(std::move(v)), 42);
-        ASSERT_EQ(get<1>(std::move(std::as_const(v))), 42);
+        ASSERT_EQ(Get<1>(v), 42);
+        ASSERT_EQ(Get<1>(std::as_const(v)), 42);
+        ASSERT_EQ(Get<1>(std::move(v)), 42);
+        ASSERT_EQ(Get<1>(std::move(std::as_const(v))), 42);
 
-        ASSERT_EQ(get<int>(v), 42);
-        ASSERT_EQ(get<int>(std::as_const(v)), 42);
-        ASSERT_EQ(get<int>(std::move(v)), 42);
-        ASSERT_EQ(get<int>(std::move(std::as_const(v))), 42);
+        ASSERT_EQ(Get<int>(v), 42);
+        ASSERT_EQ(Get<int>(std::as_const(v)), 42);
+        ASSERT_EQ(Get<int>(std::move(v)), 42);
+        ASSERT_EQ(Get<int>(std::move(std::as_const(v))), 42);
     }
 
     TEST(correctness, emplace)
@@ -528,32 +550,33 @@ namespace advanced_test
         std::string      s = "A fairly long string that will cause an allocation";
         std::vector<int> t = {1, 2, 3};
         V                v = s;
-        ASSERT_EQ(v.index(), 1);
-        v.emplace<0>(t);
-        ASSERT_EQ(v.index(), 0);
-        ASSERT_EQ(get<0>(v), t);
-        v.emplace<std::string>(s);
-        ASSERT_EQ(v.index(), 1);
-        ASSERT_EQ(get<1>(v), s);
-        v.emplace<0>(t);
-        ASSERT_EQ(v.index(), 0);
-        ASSERT_EQ(get<0>(v), t);
+        ASSERT_EQ(v.Index(), 1);
+        v.Emplace<0>(t);
+        ASSERT_EQ(v.Index(), 0);
+        ASSERT_EQ(Get<0>(v), t);
+        v.Emplace<std::string>(s);
+        ASSERT_EQ(v.Index(), 1);
+        ASSERT_EQ(Get<1>(v), s);
+        v.Emplace<0>(t);
+        ASSERT_EQ(v.Index(), 0);
+        ASSERT_EQ(Get<0>(v), t);
     }
 
     TEST(correctness, emplace_conversions)
     {
         using V = variantx::Variant<int, std::string>;
         V v;
-        ASSERT_EQ(get<0>(v), 0);
-        v.emplace<1>(3.14, static_cast<int>('a'));
-        ASSERT_EQ(get<1>(v), "aaa");
+        ASSERT_EQ(Get<0>(v), 0);
+        v.Emplace<1>(3.14, static_cast<int>('a'));
+        ASSERT_EQ(Get<1>(v), "aaa");
     }
 
     static constexpr bool in_place_ctor()
     {
-        variantx::Variant<bool, double> x1(variantx::in_place_type<double>, 42);
-        variantx::Variant<bool, double> x2(variantx::in_place_index<1>, 42);
-        return (x1.index() == 1 && get<1>(x1) == 42.0) && (x2.index() == 1 && get<1>(x2) == 42.0);
+        variantx::Variant<bool, double> x1(std::in_place_type<double>, 42);
+        variantx::Variant<bool, double> x2(std::in_place_index<1>, 42);
+
+        return (x1.Index() == 1 && Get<1>(x1) == 42.0) && (x2.Index() == 1 && Get<1>(x2) == 42.0);
     }
 
     static_assert(in_place_ctor(), "Simple in-place ctor failed");
@@ -562,22 +585,21 @@ namespace advanced_test
     {
         in_place_ctor();
 
-        variantx::Variant<bool, std::string> why_not(variantx::in_place_type<bool>, "asdasd");
-        ASSERT_TRUE(why_not.index() == 0);
-        ASSERT_TRUE(get<0>(why_not));
+        variantx::Variant<bool, std::string> why_not(std::in_place_type<bool>, "asdasd");
+        ASSERT_TRUE(why_not.Index() == 0);
+        ASSERT_TRUE(Get<0>(why_not));
 
-        variantx::Variant<bool, std::string> x2(variantx::in_place_index<0>, "asdasd");
-        ASSERT_TRUE(x2.index() == 0);
-        ASSERT_TRUE(get<0>(x2));
+        variantx::Variant<bool, std::string> x2(std::in_place_index<0>, "asdasd");
+        ASSERT_TRUE(x2.Index() == 0);
+        ASSERT_TRUE(Get<0>(x2));
 
-        variantx::Variant<std::string, std::vector<int>, char> var{variantx::in_place_index<1>,
+        variantx::Variant<std::string, std::vector<int>, char> var{std::in_place_index<1>,
                                                                    std::vector<int>{1, 2, 3, 4, 5}};
         auto other = std::vector<int>{1, 2, 3, 4, 5};
-        ASSERT_EQ(get<1>(var), other);
+        ASSERT_EQ(Get<1>(var), other);
         auto                                                   other2 = std::vector<int>(4, 42);
-        variantx::Variant<std::string, std::vector<int>, char> var2{variantx::in_place_index<1>, 4,
-                                                                    42};
-        ASSERT_EQ(get<1>(var2), other2);
+        variantx::Variant<std::string, std::vector<int>, char> var2{std::in_place_index<1>, 4, 42};
+        ASSERT_EQ(Get<1>(var2), other2);
     }
 
     TEST(correctness, variant_exceptions1)
@@ -586,115 +608,116 @@ namespace advanced_test
         variantx::Variant<T> x;
         try
         {
-            x.emplace<T>(T{});
+            x.Emplace<T>(T{});
         }
         catch (const std::exception&)
         {
-            ASSERT_TRUE(x.valueless_by_exception());
-            ASSERT_EQ(x.index(), variantx::variant_npos);
-            ASSERT_THROW(get<0>(x), variantx::BadVariantAccess);
-            ASSERT_THROW(get<0>(x), std::exception);
+            ASSERT_TRUE(x.ValuelessByException());
+            ASSERT_EQ(x.Index(), variantx::kVariantNpos);
+            ASSERT_THROW(Get<0>(x), variantx::BadVariantAccess);
+            ASSERT_THROW(Get<0>(x), std::exception);
             return;
         }
         FAIL();
     }
 
-    static constexpr bool get_if_test_basic()
+    static constexpr bool Get_if_test_basic()
     {
         variantx::Variant<float, double, long double> v = 4.5;
-        if (double* ptr = variantx::get_if<double>(&v); ptr == nullptr)
+
+        if (double* ptr = variantx::GetIf<double>(&v); ptr == nullptr)
         {
             return false;
         }
-        if (const double* ptr = variantx::get_if<double>(&std::as_const(v)); ptr == nullptr)
+        if (const double* ptr = variantx::GetIf<double>(&std::as_const(v)); ptr == nullptr)
         {
             return false;
         }
-        if (double* ptr = variantx::get_if<1>(&v); ptr == nullptr)
+        if (double* ptr = variantx::GetIf<1>(&v); ptr == nullptr)
         {
             return false;
         }
-        if (const double* ptr = variantx::get_if<1>(&std::as_const(v)); ptr == nullptr)
+        if (const double* ptr = variantx::GetIf<1>(&std::as_const(v)); ptr == nullptr)
         {
             return false;
         }
         return true;
     }
 
-    static_assert(get_if_test_basic(), "Bad get_if behavior");
+    static_assert(Get_if_test_basic(), "Bad Get_if behavior");
 
     TEST(correctness, multiple_same_types)
     {
         variantx::Variant<int, const int, const int, const volatile int> v;
-        v.emplace<int>(4);
-        ASSERT_TRUE(holds_alternative<int>(v));
-        ASSERT_TRUE(v.index() == 0);
-        ASSERT_TRUE(get_if<int>(&v));
-        ASSERT_TRUE(get_if<0>(&v));
-        ASSERT_TRUE(get<int>(v) == 4);
-        ASSERT_TRUE(get<0>(v) == 4);
+        v.Emplace<int>(4);
+        ASSERT_TRUE(HoldsAlternative<int>(v));
+        ASSERT_TRUE(v.Index() == 0);
+        ASSERT_TRUE(GetIf<int>(&v));
+        ASSERT_TRUE(GetIf<0>(&v));
+        ASSERT_TRUE(Get<int>(v) == 4);
+        ASSERT_TRUE(Get<0>(v) == 4);
 
-        v.emplace<1>(4);
-        ASSERT_TRUE(v.index() == 1);
-        ASSERT_TRUE(get_if<1>(&v));
-        ASSERT_TRUE(get<1>(v) == 4);
+        v.Emplace<1>(4);
+        ASSERT_TRUE(v.Index() == 1);
+        ASSERT_TRUE(GetIf<1>(&v));
+        ASSERT_TRUE(Get<1>(v) == 4);
 
-        v.emplace<2>(4);
-        ASSERT_TRUE(v.index() == 2);
-        ASSERT_TRUE(get_if<2>(&v));
-        ASSERT_TRUE(get<2>(v) == 4);
+        v.Emplace<2>(4);
+        ASSERT_TRUE(v.Index() == 2);
+        ASSERT_TRUE(GetIf<2>(&v));
+        ASSERT_TRUE(Get<2>(v) == 4);
 
-        ASSERT_THROW(get<1>(v), variantx::BadVariantAccess);
+        ASSERT_THROW(Get<1>(v), variantx::BadVariantAccess);
     }
 
     TEST(correctness, overloaded_address)
     {
         using V = variantx::Variant<int, OverloadedAddressOf, std::string>;
         {
-            V                    v(variantx::in_place_index<1>);
-            OverloadedAddressOf* ptr = get_if<1>(&v);
+            V                    v(std::in_place_index<1>);
+            OverloadedAddressOf* ptr = GetIf<1>(&v);
             ASSERT_TRUE(ptr != nullptr);
             ASSERT_TRUE(&*ptr == nullptr);
 
             v   = 42;
-            ptr = get_if<1>(&v);
+            ptr = GetIf<1>(&v);
             ASSERT_TRUE(ptr == nullptr);
 
             v   = OverloadedAddressOf();
-            ptr = get_if<1>(&v);
+            ptr = GetIf<1>(&v);
             ASSERT_TRUE(ptr != nullptr);
             ASSERT_TRUE(&*ptr == nullptr);
         }
         {
             V                    v = OverloadedAddressOf();
             V                    w(v);
-            OverloadedAddressOf* ptr = get_if<1>(&w);
+            OverloadedAddressOf* ptr = GetIf<1>(&w);
             ASSERT_TRUE(ptr != nullptr);
             ASSERT_TRUE(&*ptr == nullptr);
 
             w   = 42;
             w   = v;
-            ptr = get_if<1>(&w);
+            ptr = GetIf<1>(&w);
             ASSERT_TRUE(ptr != nullptr);
             ASSERT_TRUE(&*ptr == nullptr);
         }
         {
-            V                    v(variantx::in_place_type<OverloadedAddressOf>);
-            auto                 w   = V(variantx::in_place_index<1>);
-            OverloadedAddressOf* ptr = get_if<1>(&w);
+            V                    v(std::in_place_type<OverloadedAddressOf>);
+            auto                 w   = V(std::in_place_index<1>);
+            OverloadedAddressOf* ptr = GetIf<1>(&w);
             ASSERT_TRUE(ptr != nullptr);
             ASSERT_TRUE(&*ptr == nullptr);
 
             w   = 42;
             w   = std::move(v);
-            ptr = get_if<1>(&w);
+            ptr = GetIf<1>(&w);
             ASSERT_TRUE(ptr != nullptr);
             ASSERT_TRUE(&*ptr == nullptr);
         }
         {
             V v = 42;
-            v.emplace<OverloadedAddressOf>(OverloadedAddressOf());
-            OverloadedAddressOf* ptr = get_if<1>(&v);
+            v.Emplace<OverloadedAddressOf>(OverloadedAddressOf());
+            OverloadedAddressOf* ptr = GetIf<1>(&v);
             ASSERT_TRUE(ptr != nullptr);
             ASSERT_TRUE(&*ptr == nullptr);
         }
@@ -706,14 +729,14 @@ namespace advanced_test
         variantx::Variant<T> x;
         try
         {
-            x.emplace<T>(T{});
+            x.Emplace<T>(T{});
         }
         catch (const std::exception&)
         {
-            ASSERT_TRUE(x.valueless_by_exception());
+            ASSERT_TRUE(x.ValuelessByException());
             auto visitor = [](auto&&) {};
-            ASSERT_THROW(variantx::visit(visitor, x), variantx::BadVariantAccess);
-            ASSERT_THROW(variantx::visit(visitor, x), std::exception);
+            ASSERT_THROW(variantx::Visit(visitor, x), variantx::BadVariantAccess);
+            ASSERT_THROW(variantx::Visit(visitor, x), std::exception);
             return;
         }
 
@@ -723,17 +746,17 @@ namespace advanced_test
     TEST(visits, visit_on_multiple)
     {
         variantx::Variant<int, const int, const int, double> v;
-        v.emplace<2>(42);
+        v.Emplace<2>(42);
         auto visitor = [](auto x) -> int { return x; };
-        auto result  = variantx::visit(visitor, v);
+        auto result  = variantx::Visit(visitor, v);
         ASSERT_EQ(result, 42);
 
         auto visitor2 = [](int x) -> int { return x; };
-        result        = variantx::visit(visitor2, v);
+        result        = variantx::Visit(visitor2, v);
         ASSERT_EQ(result, 42);
 
         auto visitor3 = [](const double x) -> int { return static_cast<int>(x); };
-        result        = variantx::visit(visitor3, v);
+        result        = variantx::Visit(visitor3, v);
         ASSERT_EQ(result, 42);
     }
 
@@ -744,14 +767,14 @@ namespace advanced_test
             [](const std::string&) -> bool { return false; },
             [](bool) -> bool { return true; },
         };
-        ASSERT_TRUE(variantx::visit(visitor, v));
+        ASSERT_TRUE(variantx::Visit(visitor, v));
     }
 
     TEST(visits, visit_overload_different_types)
     {
         variantx::Variant<int, double, bool> v       = 3.14;
         auto                                 visitor = [](auto x) { return x; };
-        ASSERT_FLOAT_EQ(variantx::visit<float>(visitor, v), 3.14F);
+        ASSERT_FLOAT_EQ(variantx::Visit<float>(visitor, v), 3.14F);
     }
 
     TEST(visits, visit_derived)
@@ -764,10 +787,10 @@ namespace advanced_test
         };
 
         DerivedFromVariant v;
-        v.emplace<2>(42);
+        v.Emplace<2>(42);
 
         auto visitor = [](auto x) -> int { return x; };
-        auto result  = variantx::visit(visitor, v);
+        auto result  = variantx::Visit(visitor, v);
         ASSERT_EQ(result, 42);
     }
 
@@ -777,12 +800,12 @@ namespace advanced_test
         V    a1(1);
         V    b1(2);
         V    c1(3);
-        auto res1 = variantx::visit(SumOfSquaresVisitor{}, a1, b1, c1);
+        auto res1 = variantx::Visit(SumOfSquaresVisitor{}, a1, b1, c1);
 
-        V    a2(variantx::in_place_index<0>, 2);
-        V    b2(variantx::in_place_index<1>, 2);
-        V    c2(variantx::in_place_index<2>, 2);
-        auto res2 = variantx::visit(SumOfSquaresVisitor{}, a2, b2, c2);
+        V    a2(std::in_place_index<0>, 2);
+        V    b2(std::in_place_index<1>, 2);
+        V    c2(std::in_place_index<2>, 2);
+        auto res2 = variantx::Visit(SumOfSquaresVisitor{}, a2, b2, c2);
 
         return (res1 == 14) && (res2 == 12);
     }
@@ -793,27 +816,27 @@ namespace advanced_test
     {
         variantx::Variant<int> var = 322;
         StrangeVisitor         vis;
-        int                    val1 = variantx::visit(vis, var);
+        int                    val1 = variantx::Visit(vis, var);
         ASSERT_EQ(val1, 322);
-        int val2 = variantx::visit(StrangeVisitor(), var);
+        int val2 = variantx::Visit(StrangeVisitor(), var);
         ASSERT_EQ(val2, 323);
-        int val3 = variantx::visit(std::as_const(vis), var);
+        int val3 = variantx::Visit(std::as_const(vis), var);
         ASSERT_EQ(val3, 324);
-        int val4 = variantx::visit(std::move(std::as_const(vis)), var);
+        int val4 = variantx::Visit(std::move(std::as_const(vis)), var);
         ASSERT_EQ(val4, 325);
     }
 
     TEST(visits, visit_args_forwarding)
     {
         variantx::Variant<OnlyMovable> var;
-        int val1 = variantx::visit([](const OnlyMovable&) { return 322; }, var);
+        int val1 = variantx::Visit([](const OnlyMovable&) { return 322; }, var);
         ASSERT_EQ(val1, 322);
-        int val2 = variantx::visit([](OnlyMovable&) { return 322; }, var);
+        int val2 = variantx::Visit([](OnlyMovable&) { return 322; }, var);
         ASSERT_EQ(val2, 322);
         int val3 =
-            variantx::visit([](const OnlyMovable&&) { return 322; }, std::move(std::as_const(var)));
+            variantx::Visit([](const OnlyMovable&&) { return 322; }, std::move(std::as_const(var)));
         ASSERT_EQ(val3, 322);
-        int val4 = variantx::visit([](OnlyMovable&&) { return 322; }, std::move(var));
+        int val4 = variantx::Visit([](OnlyMovable&&) { return 322; }, std::move(var));
         ASSERT_EQ(val4, 322);
     }
 
@@ -822,16 +845,16 @@ namespace advanced_test
         variantx::Variant<int> var;
         int                    x = 42;
         EXPECT_TRUE(
-            std::is_same_v<decltype(variantx::visit([&](auto) -> int { return x; }, var)), int>);
+            std::is_same_v<decltype(variantx::Visit([&](auto) -> int { return x; }, var)), int>);
         EXPECT_TRUE(
-            std::is_same_v<decltype(variantx::visit([&](auto) -> int& { return x; }, var)), int&>);
+            std::is_same_v<decltype(variantx::Visit([&](auto) -> int& { return x; }, var)), int&>);
         EXPECT_TRUE(
-            std::is_same_v<decltype(variantx::visit([&](auto) -> const int& { return x; }, var)),
+            std::is_same_v<decltype(variantx::Visit([&](auto) -> const int& { return x; }, var)),
                            const int&>);
-        EXPECT_TRUE(std::is_same_v<decltype(variantx::visit(
+        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit(
                                        [&](auto) -> int&& { return std::move(x); }, var)),
                                    int&&>);
-        EXPECT_TRUE(std::is_same_v<decltype(variantx::visit(
+        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit(
                                        [&](auto) -> const int&& { return std::move(x); }, var)),
                                    const int&&>);
     }
@@ -844,18 +867,18 @@ namespace advanced_test
         V a            = 14;
         V b            = 88;
         ASSERT_ANY_THROW({
-            V tmp(variantx::in_place_index<1>);
+            V tmp(std::in_place_index<1>);
             a = std::move(tmp);
         });
         ASSERT_ANY_THROW({
-            V tmp(variantx::in_place_index<1>);
+            V tmp(std::in_place_index<1>);
             b = std::move(tmp);
         });
-        ASSERT_TRUE(a.valueless_by_exception());
-        ASSERT_TRUE(b.valueless_by_exception());
+        ASSERT_TRUE(a.ValuelessByException());
+        ASSERT_TRUE(b.ValuelessByException());
         a.swap(b);
-        ASSERT_TRUE(a.valueless_by_exception());
-        ASSERT_TRUE(b.valueless_by_exception());
+        ASSERT_TRUE(a.ValuelessByException());
+        ASSERT_TRUE(b.ValuelessByException());
         ASSERT_EQ(T::swap_called, 0);
     }
 
@@ -866,24 +889,24 @@ namespace advanced_test
         V a;
         V b;
         ASSERT_ANY_THROW({
-            V tmp(variantx::in_place_index<1>);
+            V tmp(std::in_place_index<1>);
             a = std::move(tmp);
         });
-        ASSERT_TRUE(a.valueless_by_exception());
+        ASSERT_TRUE(a.ValuelessByException());
 
         NonTrivialDestructor::destructor_count                    = 0;
         ThrowingMoveAssignmentWithoutMoveConstructor::swap_called = 0;
         a.swap(b);
-        ASSERT_FALSE(a.valueless_by_exception());
-        ASSERT_TRUE(b.valueless_by_exception());
+        ASSERT_FALSE(a.ValuelessByException());
+        ASSERT_TRUE(b.ValuelessByException());
         ASSERT_NE(NonTrivialDestructor::destructor_count, 0);
         ASSERT_EQ(ThrowingMoveAssignmentWithoutMoveConstructor::swap_called, 0);
 
         NonTrivialDestructor::destructor_count                    = 0;
         ThrowingMoveAssignmentWithoutMoveConstructor::swap_called = 0;
         a.swap(b);
-        ASSERT_TRUE(a.valueless_by_exception());
-        ASSERT_FALSE(b.valueless_by_exception());
+        ASSERT_TRUE(a.ValuelessByException());
+        ASSERT_FALSE(b.ValuelessByException());
         ASSERT_NE(NonTrivialDestructor::destructor_count, 0);
         ASSERT_EQ(ThrowingMoveAssignmentWithoutMoveConstructor::swap_called, 0);
     }
@@ -893,8 +916,8 @@ namespace advanced_test
         using T        = ThrowingMoveAssignmentWithoutMoveConstructor;
         T::swap_called = 0;
         using V        = variantx::Variant<int, T>;
-        V a(variantx::in_place_index<1>);
-        V b(variantx::in_place_index<1>);
+        V a(std::in_place_index<1>);
+        V b(std::in_place_index<1>);
         a.swap(b);
         ASSERT_EQ(T::swap_called, 1);
     }
@@ -904,14 +927,14 @@ namespace advanced_test
         using V = variantx::Variant<int, std::string, Trivial>;
         V a(42);
         V b("kek");
-        V c(variantx::in_place_index<2>);
+        V c(std::in_place_index<2>);
         a.swap(b);
         b.swap(c);
-        ASSERT_TRUE(holds_alternative<std::string>(a));
-        ASSERT_TRUE(holds_alternative<Trivial>(b));
-        ASSERT_TRUE(holds_alternative<int>(c));
-        ASSERT_EQ(get<std::string>(a), "kek");
-        ASSERT_EQ(get<int>(c), 42);
+        ASSERT_TRUE(HoldsAlternative<std::string>(a));
+        ASSERT_TRUE(HoldsAlternative<Trivial>(b));
+        ASSERT_TRUE(HoldsAlternative<int>(c));
+        ASSERT_EQ(Get<std::string>(a), "kek");
+        ASSERT_EQ(Get<int>(c), 42);
     }
 
     TEST(swap, swap_no_move_assigment)
@@ -923,22 +946,22 @@ namespace advanced_test
         V v2 = T(5);
         V v3 = T(6);
         v1.swap(v2);
-        ASSERT_TRUE(holds_alternative<T>(v1));
-        ASSERT_TRUE(holds_alternative<long>(v2));
-        ASSERT_EQ(get<T>(v1).x, 5);
-        ASSERT_EQ(get<long>(v2), 10);
+        ASSERT_TRUE(HoldsAlternative<T>(v1));
+        ASSERT_TRUE(HoldsAlternative<long>(v2));
+        ASSERT_EQ(Get<T>(v1).x, 5);
+        ASSERT_EQ(Get<long>(v2), 10);
         v1.swap(v3);
-        ASSERT_EQ(get<T>(v1).x, 6);
-        ASSERT_EQ(get<T>(v3).x, 5);
+        ASSERT_EQ(Get<T>(v1).x, 6);
+        ASSERT_EQ(Get<T>(v3).x, 5);
     }
 
     TEST(assignment, same_alternative)
     {
         using V = variantx::Variant<NonTrivialIntWrapper, NonTrivialCopyAssignment>;
-        V a(variantx::in_place_type<NonTrivialCopyAssignment>, 42);
-        V b(variantx::in_place_type<NonTrivialCopyAssignment>, 14882);
+        V a(std::in_place_type<NonTrivialCopyAssignment>, 42);
+        V b(std::in_place_type<NonTrivialCopyAssignment>, 14882);
         a = b;
-        ASSERT_EQ(get<1>(a).x, 14882 + NonTrivialCopyAssignment::ASSIGN_DELTA);
+        ASSERT_EQ(Get<1>(a).x, 14882 + NonTrivialCopyAssignment::ASSIGN_DELTA);
     }
 
     TEST(assignment, back_and_forth)
@@ -949,28 +972,28 @@ namespace advanced_test
 
         V a = NonTrivialIntWrapper(42);
         V b = NonTrivialCopyAssignment(14882);
-        ASSERT_EQ(get<0>(a).x, 42);
-        ASSERT_EQ(get<1>(b).x, 14882 + CTOR_DELTA);
+        ASSERT_EQ(Get<0>(a).x, 42);
+        ASSERT_EQ(Get<1>(b).x, 14882 + CTOR_DELTA);
         a = 42;
-        ASSERT_EQ(get<0>(a).x, 43);
+        ASSERT_EQ(Get<0>(a).x, 43);
         a = NonTrivialCopyAssignment(42);
-        ASSERT_EQ(get<1>(a).x, 42 + CTOR_DELTA);
+        ASSERT_EQ(Get<1>(a).x, 42 + CTOR_DELTA);
         b = a;
-        ASSERT_EQ(get<1>(b).x, 42 + CTOR_DELTA + ASSIGN_DELTA);
+        ASSERT_EQ(Get<1>(b).x, 42 + CTOR_DELTA + ASSIGN_DELTA);
         a = b;
-        ASSERT_EQ(get<1>(a).x, 42 + CTOR_DELTA + ASSIGN_DELTA * 2);
-        ASSERT_EQ(get<1>(b).x, 42 + CTOR_DELTA + ASSIGN_DELTA);
+        ASSERT_EQ(Get<1>(a).x, 42 + CTOR_DELTA + ASSIGN_DELTA * 2);
+        ASSERT_EQ(Get<1>(b).x, 42 + CTOR_DELTA + ASSIGN_DELTA);
     }
 
     TEST(assignment, move_only)
     {
         OnlyMovable::move_assignment_called = 0;
         using V                             = variantx::Variant<OnlyMovable>;
-        V a(variantx::in_place_type<OnlyMovable>);
-        V b(variantx::in_place_type<OnlyMovable>);
+        V a(std::in_place_type<OnlyMovable>);
+        V b(std::in_place_type<OnlyMovable>);
         a = std::move(b);
-        ASSERT_TRUE(get<0>(a).has_coin());
-        ASSERT_FALSE(get<0>(b).has_coin());
+        ASSERT_TRUE(Get<0>(a).has_coin());
+        ASSERT_FALSE(Get<0>(b).has_coin());
         ASSERT_EQ(OnlyMovable::move_assignment_called, 1);
     }
 
@@ -980,7 +1003,7 @@ namespace advanced_test
         V a     = std::vector{13.37, 2020.02};
         V b     = std::vector{1337, 14882};
         a       = b;
-        ASSERT_TRUE(holds_alternative<std::vector<int>>(a));
+        ASSERT_TRUE(HoldsAlternative<std::vector<int>>(a));
     }
 
     TEST(assignment, converting_assignment2)
@@ -1001,11 +1024,11 @@ namespace advanced_test
         v4 = std::move(i2);
         v5 = std::move(ci2);
 
-        EXPECT_EQ(get<0>(v1), 8);
-        EXPECT_EQ(get<0>(v2), 7);
-        EXPECT_EQ(get<0>(v3), 6);
-        EXPECT_EQ(get<0>(v4), 7);
-        EXPECT_EQ(get<0>(v5), 6);
+        EXPECT_EQ(Get<0>(v1), 8);
+        EXPECT_EQ(Get<0>(v2), 7);
+        EXPECT_EQ(Get<0>(v3), 6);
+        EXPECT_EQ(Get<0>(v4), 7);
+        EXPECT_EQ(Get<0>(v5), 6);
     }
 
     TEST(assignment, converting_assignment2_const)
@@ -1026,11 +1049,11 @@ namespace advanced_test
         v4 = std::move(l2);
         v5 = std::move(cl2);
 
-        EXPECT_EQ(get<1>(v1), 8);
-        EXPECT_EQ(get<1>(v2), 7);
-        EXPECT_EQ(get<1>(v3), 6);
-        EXPECT_EQ(get<1>(v4), 7);
-        EXPECT_EQ(get<1>(v5), 6);
+        EXPECT_EQ(Get<1>(v1), 8);
+        EXPECT_EQ(Get<1>(v2), 7);
+        EXPECT_EQ(Get<1>(v3), 6);
+        EXPECT_EQ(Get<1>(v4), 7);
+        EXPECT_EQ(Get<1>(v5), 6);
     }
 
     TEST(assignment, duplicated_type_with_throwing_copy_ctor)
@@ -1050,7 +1073,7 @@ namespace advanced_test
         a = b;
     }
 
-    TEST(valueless_by_exception, copy_assign_nothrow)
+    TEST(ValuelessByException, copy_assign_nothrow)
     {
         static constexpr ThrowingMemberParams params = {};
         using CountedCalls                           = ThrowingMembers<params>;
@@ -1061,12 +1084,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_NO_THROW(v1 = v2);
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(CountedCalls::copy_calls(), 1);
         ASSERT_EQ(CountedCalls::move_calls(), 0);
     }
 
-    TEST(valueless_by_exception, copy_assign_throwing_copy)
+    TEST(ValuelessByException, copy_assign_throwing_copy)
     {
         static constexpr ThrowingMemberParams params = {.throwing_copy = true};
         using ThrowingCopy                           = ThrowingMembers<params>;
@@ -1077,12 +1100,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_ANY_THROW(v1 = v2);
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(ThrowingCopy::copy_calls(), 1);
         ASSERT_EQ(ThrowingCopy::move_calls(), 0);
     }
 
-    TEST(valueless_by_exception, copy_assign_throwing_move)
+    TEST(ValuelessByException, copy_assign_throwing_move)
     {
         static constexpr ThrowingMemberParams params = {.throwing_move = true};
         using ThrowingMove                           = ThrowingMembers<params>;
@@ -1093,12 +1116,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_NO_THROW(v1 = v2);
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(ThrowingMove::copy_calls(), 1);
         ASSERT_EQ(ThrowingMove::move_calls(), 0);
     }
 
-    TEST(valueless_by_exception, copy_assign_throwing_copy_and_move)
+    TEST(ValuelessByException, copy_assign_throwing_copy_and_move)
     {
         static constexpr ThrowingMemberParams params = {.throwing_copy = true,
                                                         .throwing_move = true};
@@ -1110,12 +1133,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_ANY_THROW(v1 = v2);
-        ASSERT_TRUE(v1.valueless_by_exception());
+        ASSERT_TRUE(v1.ValuelessByException());
         ASSERT_EQ(ThrowingCopyAndMove::copy_calls(), 1);
         ASSERT_EQ(ThrowingCopyAndMove::move_calls(), 0);
     }
 
-    TEST(valueless_by_exception, move_assign_nothrow)
+    TEST(ValuelessByException, move_assign_nothrow)
     {
         static constexpr ThrowingMemberParams params = {};
         using CountedCalls                           = ThrowingMembers<params>;
@@ -1126,12 +1149,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_NO_THROW(v1 = std::move(v2));
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(CountedCalls::copy_calls(), 0);
         ASSERT_EQ(CountedCalls::move_calls(), 1);
     }
 
-    TEST(valueless_by_exception, move_assign_throwing_copy)
+    TEST(ValuelessByException, move_assign_throwing_copy)
     {
         static constexpr ThrowingMemberParams params = {.throwing_copy = true};
         using ThrowingCopy                           = ThrowingMembers<params>;
@@ -1142,12 +1165,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_NO_THROW(v1 = std::move(v2));
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(ThrowingCopy::copy_calls(), 0);
         ASSERT_EQ(ThrowingCopy::move_calls(), 1);
     }
 
-    TEST(valueless_by_exception, move_assign_throwing_move)
+    TEST(ValuelessByException, move_assign_throwing_move)
     {
         static constexpr ThrowingMemberParams params = {.throwing_move = true};
         using ThrowingMove                           = ThrowingMembers<params>;
@@ -1158,12 +1181,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_ANY_THROW(v1 = std::move(v2));
-        ASSERT_TRUE(v1.valueless_by_exception());
+        ASSERT_TRUE(v1.ValuelessByException());
         ASSERT_EQ(ThrowingMove::copy_calls(), 0);
         ASSERT_EQ(ThrowingMove::move_calls(), 1);
     }
 
-    TEST(valueless_by_exception, move_assign_throwing_copy_and_move)
+    TEST(ValuelessByException, move_assign_throwing_copy_and_move)
     {
         static constexpr ThrowingMemberParams params = {.throwing_copy = true,
                                                         .throwing_move = true};
@@ -1175,12 +1198,12 @@ namespace advanced_test
         V v2    = ThrowingMembersConstructorTag{};
 
         ASSERT_ANY_THROW(v1 = std::move(v2));
-        ASSERT_TRUE(v1.valueless_by_exception());
+        ASSERT_TRUE(v1.ValuelessByException());
         ASSERT_EQ(ThrowingCopyAndMove::copy_calls(), 0);
         ASSERT_EQ(ThrowingCopyAndMove::move_calls(), 1);
     }
 
-    TEST(valueless_by_exception, converting_assign_nothrow)
+    TEST(ValuelessByException, converting_assign_nothrow)
     {
         static constexpr ThrowingMemberParams params = {};
         using CountedCalls                           = ThrowingMembers<params>;
@@ -1190,12 +1213,12 @@ namespace advanced_test
         V v1    = std::vector{1, 2, 3};
 
         ASSERT_NO_THROW(v1 = ThrowingMembersConstructorTag{});
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(CountedCalls::copy_calls(), 0);
         ASSERT_EQ(CountedCalls::move_calls(), 0);
     }
 
-    TEST(valueless_by_exception, converting_assign_throwing_conv)
+    TEST(ValuelessByException, converting_assign_throwing_conv)
     {
         static constexpr ThrowingMemberParams params = {};
 
@@ -1213,12 +1236,12 @@ namespace advanced_test
         V v1    = std::vector{1, 2, 3};
 
         ASSERT_ANY_THROW(v1 = ThrowingMembersConstructorTag{});
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(CountedCalls::copy_calls(), 0);
         ASSERT_EQ(CountedCalls::move_calls(), 0);
     }
 
-    TEST(valueless_by_exception, converting_assign_throwing_move)
+    TEST(ValuelessByException, converting_assign_throwing_move)
     {
         static constexpr ThrowingMemberParams params = {.throwing_move = true};
         using CountedCalls                           = ThrowingMembers<params>;
@@ -1228,12 +1251,12 @@ namespace advanced_test
         V v1    = std::vector{1, 2, 3};
 
         ASSERT_NO_THROW(v1 = ThrowingMembersConstructorTag{});
-        ASSERT_FALSE(v1.valueless_by_exception());
+        ASSERT_FALSE(v1.ValuelessByException());
         ASSERT_EQ(CountedCalls::copy_calls(), 0);
         ASSERT_EQ(CountedCalls::move_calls(), 0);
     }
 
-    TEST(valueless_by_exception, converting_assign_throwing_conv_and_move)
+    TEST(ValuelessByException, converting_assign_throwing_conv_and_move)
     {
         static constexpr ThrowingMemberParams params = {.throwing_move = true};
 
@@ -1251,7 +1274,7 @@ namespace advanced_test
         V v1    = std::vector{1, 2, 3};
 
         ASSERT_ANY_THROW(v1 = ThrowingMembersConstructorTag{});
-        ASSERT_TRUE(v1.valueless_by_exception());
+        ASSERT_TRUE(v1.ValuelessByException());
         ASSERT_EQ(CountedCalls::copy_calls(), 0);
         ASSERT_EQ(CountedCalls::move_calls(), 0);
     }
@@ -1259,10 +1282,10 @@ namespace advanced_test
     TEST(constructor, move_only)
     {
         using V = variantx::Variant<OnlyMovable>;
-        V a(variantx::in_place_type<OnlyMovable>);
+        V a(std::in_place_type<OnlyMovable>);
         V b(std::move(a));
-        ASSERT_TRUE(get<0>(b).has_coin());
-        ASSERT_FALSE(get<0>(a).has_coin());
+        ASSERT_TRUE(Get<0>(b).has_coin());
+        ASSERT_FALSE(Get<0>(a).has_coin());
     }
 
     TEST(constructor, ctad)
@@ -1287,11 +1310,11 @@ namespace advanced_test
         V v4 = std::move(i1);
         V v5 = std::move(ci1);
 
-        EXPECT_EQ(get<0>(v1), 11);
-        EXPECT_EQ(get<0>(v2), 10);
-        EXPECT_EQ(get<0>(v3), 9);
-        EXPECT_EQ(get<0>(v4), 10);
-        EXPECT_EQ(get<0>(v5), 9);
+        EXPECT_EQ(Get<0>(v1), 11);
+        EXPECT_EQ(Get<0>(v2), 10);
+        EXPECT_EQ(Get<0>(v3), 9);
+        EXPECT_EQ(Get<0>(v4), 10);
+        EXPECT_EQ(Get<0>(v5), 9);
     }
 
     TEST(constructor, converting_ctor_const)
@@ -1306,11 +1329,11 @@ namespace advanced_test
         V v4 = std::move(i1);
         V v5 = std::move(ci1);
 
-        EXPECT_EQ(get<0>(v1), 11);
-        EXPECT_EQ(get<0>(v2), 10);
-        EXPECT_EQ(get<0>(v3), 9);
-        EXPECT_EQ(get<0>(v4), 10);
-        EXPECT_EQ(get<0>(v5), 9);
+        EXPECT_EQ(Get<0>(v1), 11);
+        EXPECT_EQ(Get<0>(v2), 10);
+        EXPECT_EQ(Get<0>(v3), 9);
+        EXPECT_EQ(Get<0>(v4), 10);
+        EXPECT_EQ(Get<0>(v5), 9);
     }
 
     TEST(destructor, emplace)
@@ -1319,13 +1342,13 @@ namespace advanced_test
         {
             variantx::Variant<NonTrivialDestructor, int> v;
             int                                          x = 14882;
-            v.emplace<1>(x);
+            v.Emplace<1>(x);
             ASSERT_EQ(NonTrivialDestructor::destructor_count, 1);
         }
         {
             variantx::Variant<NonTrivialDestructor, int> v;
             int                                          x = 14882;
-            v.emplace<int>(x);
+            v.Emplace<int>(x);
             ASSERT_EQ(NonTrivialDestructor::destructor_count, 2);
         }
     }
@@ -1372,18 +1395,18 @@ namespace advanced_test
     {
         using V = variantx::Variant<NonTrivialIntWrapper, int, std::string>;
         {
-            V v1(variantx::in_place_index<0>, 42);
-            V v2(variantx::in_place_index<0>, 42);
+            V v1(std::in_place_index<0>, 42);
+            V v2(std::in_place_index<0>, 42);
             ASSERT_TRUE(test_equal(v1, v2, true));
         }
         {
-            V v1(variantx::in_place_index<0>, 42);
-            V v2(variantx::in_place_index<0>, 43);
+            V v1(std::in_place_index<0>, 42);
+            V v2(std::in_place_index<0>, 43);
             ASSERT_TRUE(test_equal(v1, v2, false));
         }
         {
-            V v1(variantx::in_place_index<0>, 42);
-            V v2(variantx::in_place_index<1>, 42);
+            V v1(std::in_place_index<0>, 42);
+            V v2(std::in_place_index<1>, 42);
             ASSERT_TRUE(test_equal(v1, v2, false));
         }
     }
@@ -1400,20 +1423,20 @@ namespace advanced_test
     {
         using V = variantx::Variant<NonTrivialIntWrapper, int, std::string>;
         {
-            V v1(variantx::in_place_index<0>, 42);
-            V v2(variantx::in_place_index<0>, 42);
+            V v1(std::in_place_index<0>, 42);
+            V v2(std::in_place_index<0>, 42);
             ASSERT_TRUE(test_less(v1, v2, false, false));
             ASSERT_TRUE(test_less(v2, v1, false, false));
         }
         {
-            V v1(variantx::in_place_index<0>, 42);
-            V v2(variantx::in_place_index<0>, 43);
+            V v1(std::in_place_index<0>, 42);
+            V v2(std::in_place_index<0>, 43);
             ASSERT_TRUE(test_less(v1, v2, true, false));
             ASSERT_TRUE(test_less(v2, v1, false, true));
         }
         {
-            V v1(variantx::in_place_index<0>, 43);
-            V v2(variantx::in_place_index<1>, 42);
+            V v1(std::in_place_index<0>, 43);
+            V v2(std::in_place_index<1>, 42);
             ASSERT_TRUE(test_less(v1, v2, true, false));
             ASSERT_TRUE(test_less(v2, v1, false, true));
         }
@@ -1424,17 +1447,17 @@ namespace advanced_test
         using V = variantx::Variant<int, EmptyComparable, std::string>;
         {
             V v1, v2;
-            ASSERT_ANY_THROW(v2 = V(variantx::in_place_type<EmptyComparable>));
-            ASSERT_TRUE(v2.valueless_by_exception());
+            ASSERT_ANY_THROW(v2 = V(std::in_place_type<EmptyComparable>));
+            ASSERT_TRUE(v2.ValuelessByException());
             ASSERT_TRUE(test_less(v1, v2, false, true));
             ASSERT_TRUE(test_less(v2, v1, true, false));
         }
         {
             V v1, v2;
-            ASSERT_ANY_THROW(v1 = V(variantx::in_place_type<EmptyComparable>));
-            ASSERT_TRUE(v1.valueless_by_exception());
-            ASSERT_ANY_THROW(v2 = V(variantx::in_place_type<EmptyComparable>));
-            ASSERT_TRUE(v2.valueless_by_exception());
+            ASSERT_ANY_THROW(v1 = V(std::in_place_type<EmptyComparable>));
+            ASSERT_TRUE(v1.ValuelessByException());
+            ASSERT_ANY_THROW(v2 = V(std::in_place_type<EmptyComparable>));
+            ASSERT_TRUE(v2.ValuelessByException());
             ASSERT_TRUE(test_less(v1, v2, false, false));
             ASSERT_TRUE(test_less(v2, v1, false, false));
         }
@@ -1443,8 +1466,8 @@ namespace advanced_test
     TEST(relops, relational_custom)
     {
         ComparisonCounters                  ca, cb;
-        variantx::Variant<CustomComparable> a(variantx::in_place_index<0>, 42, &ca);
-        variantx::Variant<CustomComparable> b(variantx::in_place_index<0>, 43, &cb);
+        variantx::Variant<CustomComparable> a(std::in_place_index<0>, 42, &ca);
+        variantx::Variant<CustomComparable> b(std::in_place_index<0>, 43, &cb);
 
         EXPECT_FALSE(operator==(a, b));
         EXPECT_TRUE(operator!=(a, b));
@@ -1510,18 +1533,18 @@ namespace advanced_test
         constexpr double nan = std::numeric_limits<double>::quiet_NaN();
 
         {
-            V v1(variantx::in_place_type<int>, 1);
-            V v2(variantx::in_place_type<double>, nan);
+            V v1(std::in_place_type<int>, 1);
+            V v2(std::in_place_type<double>, nan);
             EXPECT_EQ(v1 <=> v2, std::partial_ordering::less);
         }
         {
-            V v1(variantx::in_place_type<double>, nan);
-            V v2(variantx::in_place_type<int>, 2);
+            V v1(std::in_place_type<double>, nan);
+            V v2(std::in_place_type<int>, 2);
             EXPECT_EQ(v1 <=> v2, std::partial_ordering::greater);
         }
         {
-            V v1(variantx::in_place_type<double>, nan);
-            V v2(variantx::in_place_type<double>, nan);
+            V v1(std::in_place_type<double>, nan);
+            V v2(std::in_place_type<double>, nan);
             EXPECT_EQ(v1 <=> v2, std::partial_ordering::unordered);
         }
     }
@@ -1530,7 +1553,7 @@ namespace advanced_test
         []
         {
             variantx::Variant<ConstexprNonTrivialDestructor, int, int> a;
-            a.emplace<2>(42);
+            a.Emplace<2>(42);
 
             return true;
         }());
@@ -1551,18 +1574,18 @@ namespace advanced_test
             using V = variantx::Variant<int, const int, const A, A>;
 
             {
-                V a1(variantx::in_place_index<1>, 42);
+                V a1(std::in_place_index<1>, 42);
                 V b1 = a1;
-                if (b1.index() != a1.index())
+                if (b1.Index() != a1.Index())
                 {
                     return false;
                 }
             }
 
             {
-                V a2(variantx::in_place_index<2>);
+                V a2(std::in_place_index<2>);
                 V b2 = a2;
-                if (b2.index() != a2.index())
+                if (b2.Index() != a2.Index())
                 {
                     return false;
                 }
@@ -1578,38 +1601,38 @@ namespace advanced_test
             using V = variantx::Variant<int, int, A, A>;
 
             {
-                V a1(variantx::in_place_index<1>, 42);
+                V a1(std::in_place_index<1>, 42);
                 V b1 = a1;
-                if (b1.index() != a1.index())
+                if (b1.Index() != a1.Index())
                 {
                     return false;
                 }
                 b1 = a1;
-                if (b1.index() != a1.index())
+                if (b1.Index() != a1.Index())
                 {
                     return false;
                 }
                 b1 = std::move(a1);
-                if (b1.index() != a1.index())
+                if (b1.Index() != a1.Index())
                 {
                     return false;
                 }
             }
 
             {
-                V a2(variantx::in_place_index<2>);
+                V a2(std::in_place_index<2>);
                 V b2 = a2;
-                if (b2.index() != a2.index())
+                if (b2.Index() != a2.Index())
                 {
                     return false;
                 }
                 b2 = a2;
-                if (b2.index() != a2.index())
+                if (b2.Index() != a2.Index())
                 {
                     return false;
                 }
                 b2 = std::move(a2);
-                if (b2.index() != a2.index())
+                if (b2.Index() != a2.Index())
                 {
                     return false;
                 }
@@ -1617,6 +1640,5 @@ namespace advanced_test
 
             return true;
         }());
-#endif
 }  // namespace advanced_test
 // NOLINTEND

@@ -7,5 +7,4 @@ include(${CMAKE_SOURCE_DIR}/cmake/Tests.cmake)
 
 enable_testing()
 
-add_subdirectory(utilities)
 add_subdirectory(variantx)
