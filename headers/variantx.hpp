@@ -69,10 +69,11 @@ namespace variantx
 
         // Light N-dimensional array of function pointers. Used in place of std::array to avoid
         // adding a dependency.
+        // Here we could use std::array, but I followed the libc++ impl :)
         template <typename T, std::size_t Size>
         struct FArray
         {
-            static_assert(Size > 0, "N-dimensional array should never be empty in std::visit");
+            static_assert(Size > 0, "N-dimensional array should never be empty in variantx::Visit");
             T buffer_[Size] = {};  // NOLINT -> c-style array
 
             constexpr const T& operator[](std::size_t index) const noexcept
