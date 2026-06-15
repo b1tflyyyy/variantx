@@ -18,27 +18,21 @@ namespace utilities
         template <typename... Ts>
         struct GetTypeByIndexImpl;
 
-        template <std::size_t CurrentIndex, std::size_t TargetIndex, typename Head,
-                  typename... Rest>
-        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<TargetIndex>, Head,
-                                  Rest...>
+        template <std::size_t CurrentIndex, std::size_t TargetIndex, typename Head, typename... Rest>
+        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<TargetIndex>, Head, Rest...>
         {
-            using Type = typename GetTypeByIndexImpl<SizeTWrapper<CurrentIndex + 1>,
-                                                     SizeTWrapper<TargetIndex>, Rest...>::Type;
+            using Type = typename GetTypeByIndexImpl<SizeTWrapper<CurrentIndex + 1>, SizeTWrapper<TargetIndex>, Rest...>::Type;
         };
 
         template <std::size_t CurrentIndex, typename Head, typename... Rest>
-        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<CurrentIndex>, Head,
-                                  Rest...>
+        struct GetTypeByIndexImpl<SizeTWrapper<CurrentIndex>, SizeTWrapper<CurrentIndex>, Head, Rest...>
         {
             using Type = Head;
         };
     }  // namespace detail
 
     template <std::size_t TargetIndex, typename... Ts>
-    using GetTypeByIndex =
-        typename detail::GetTypeByIndexImpl<SizeTWrapper<0>, SizeTWrapper<TargetIndex>,
-                                            Ts...>::Type;
+    using GetTypeByIndex = typename detail::GetTypeByIndexImpl<SizeTWrapper<0>, SizeTWrapper<TargetIndex>, Ts...>::Type;
 
     namespace detail
     {
@@ -79,12 +73,10 @@ namespace utilities
         };
 
         template <typename... Ts>
-        using MakeAllOverloads = typename MakeAllOverloadsImpl<
-            std::make_index_sequence<sizeof...(Ts)>>::template Make<Ts...>;
+        using MakeAllOverloads = typename MakeAllOverloadsImpl<std::make_index_sequence<sizeof...(Ts)>>::template Make<Ts...>;
 
         template <typename From, typename... Ts>
-        using BestMatchType =
-            typename std::invoke_result_t<MakeAllOverloads<Ts...>, From, From>::type;
+        using BestMatchType = typename std::invoke_result_t<MakeAllOverloads<Ts...>, From, From>::type;
     }  // namespace detail
 
     template <typename From, typename... Ts>
