@@ -93,19 +93,14 @@ namespace advanced_test
 
     TEST(traits, in_place_type)
     {
-        using V1 = variantx::Variant<int, float, std::string, Trivial, std::vector<int>,
-                                     NoDefaultConstructor>;
+        using V1 = variantx::Variant<int, float, std::string, Trivial, std::vector<int>, NoDefaultConstructor>;
 
-        static_assert(std::is_constructible_v<
-                          V1, std::in_place_type_t<ThrowingMoveAssignmentWithoutMoveConstructor>> ==
-                      false);
+        static_assert(std::is_constructible_v<V1, std::in_place_type_t<ThrowingMoveAssignmentWithoutMoveConstructor>> == false);
 
         static_assert(std::is_constructible_v<V1, std::in_place_type_t<Trivial>>);
-        static_assert(std::is_constructible_v<V1, std::in_place_type_t<NoDefaultConstructor>> ==
-                      false);
+        static_assert(std::is_constructible_v<V1, std::in_place_type_t<NoDefaultConstructor>> == false);
 
-        static_assert(
-            std::is_constructible_v<V1, std::in_place_type_t<std::vector<int>>, size_t, int>);
+        static_assert(std::is_constructible_v<V1, std::in_place_type_t<std::vector<int>>, size_t, int>);
 
         static_assert(std::is_constructible_v<V1, std::in_place_type_t<std::vector<int>>, size_t>);
         static_assert(std::is_constructible_v<V1, std::in_place_type_t<std::string>>);
@@ -113,8 +108,7 @@ namespace advanced_test
 
     TEST(traits, in_place_index)
     {
-        using V1 = variantx::Variant<int, float, std::string, Trivial, std::vector<int>,
-                                     NoDefaultConstructor>;
+        using V1 = variantx::Variant<int, float, std::string, Trivial, std::vector<int>, NoDefaultConstructor>;
 
         static_assert(std::is_constructible_v<V1, std::in_place_index_t<1337>> == false);
         static_assert(std::is_constructible_v<V1, std::in_place_index_t<3>>);
@@ -153,8 +147,7 @@ namespace advanced_test
         using V3 = variantx::Variant<Trivial, int, std::vector<double>>;
         using V4 = variantx::Variant<double, std::string, bool>;
         using V5 = variantx::Variant<int, short, char, Trivial, bool>;
-        using V6 = variantx::Variant<int, std::string, ThrowingMoveAssignmentWithoutMoveConstructor,
-                                     double>;
+        using V6 = variantx::Variant<int, std::string, ThrowingMoveAssignmentWithoutMoveConstructor, double>;
         using V7 = variantx::Variant<int, ThrowingMoveAssignment, double>;
         using V8 = variantx::Variant<int, double, NoMove>;
         using V9 = variantx::Variant<NonTrivialCopyWithTrivialMove>;
@@ -192,10 +185,9 @@ namespace advanced_test
 
     TEST(traits, swap)
     {
-        using VariantWithNothrowSwap  = variantx::Variant<int, bool>;
-        using VariantWithThrowingSwap = variantx::Variant<ThrowingSwap, long>;
-        using VariantNonMoveAssignable =
-            variantx::Variant<MoveConstructorWithoutMoveAssignment, int>;
+        using VariantWithNothrowSwap   = variantx::Variant<int, bool>;
+        using VariantWithThrowingSwap  = variantx::Variant<ThrowingSwap, long>;
+        using VariantNonMoveAssignable = variantx::Variant<MoveConstructorWithoutMoveAssignment, int>;
 
         static_assert(std::is_nothrow_swappable_v<VariantWithNothrowSwap>);
         static_assert(std::is_nothrow_swappable_v<VariantNonMoveAssignable>);
@@ -204,8 +196,7 @@ namespace advanced_test
 
     TEST(traits, variant_size)
     {
-        using V1 = variantx::Variant<int, std::string,
-                                     variantx::Variant<int, std::vector<int>, size_t>, bool>;
+        using V1 = variantx::Variant<int, std::string, variantx::Variant<int, std::vector<int>, size_t>, bool>;
 
         static_assert(variantx::kVariantSizeV<V1> == 4);
         static_assert(variantx::kVariantSizeV<V1> == variantx::kVariantSizeV<const V1>);
@@ -213,8 +204,7 @@ namespace advanced_test
 
     TEST(traits, variant_alternative)
     {
-        using V1 = variantx::Variant<int, std::string,
-                                     variantx::Variant<int, std::vector<int>, size_t>, bool>;
+        using V1 = variantx::Variant<int, std::string, variantx::Variant<int, std::vector<int>, size_t>, bool>;
 
         using T1 = variantx::VariantAlternativeType<1, V1>;
         using T2 = variantx::VariantAlternativeType<1, const V1>;
@@ -223,12 +213,9 @@ namespace advanced_test
         static_assert(std::is_same_v<const T1, T2>);
 
         static_assert(variantx::Variant<int>().Index() == 0, "Constexpr empty ctor failed");
-        static_assert(variantx::HoldsAlternative<int>(variantx::Variant<int, double>()),
-                      "Constexpr empty ctor HoldsAlternative failed");
-        static_assert(variantx::HoldsAlternative<int>(variantx::Variant<int>()),
-                      "Constexpr empty ctor HoldsAlternative failed");
-        static_assert(HoldsAlternative<int>(variantx::Variant<int>()),
-                      "Constexpr empty ctor HoldsAlternative ADL failed");
+        static_assert(variantx::HoldsAlternative<int>(variantx::Variant<int, double>()), "Constexpr empty ctor HoldsAlternative failed");
+        static_assert(variantx::HoldsAlternative<int>(variantx::Variant<int>()), "Constexpr empty ctor HoldsAlternative failed");
+        static_assert(HoldsAlternative<int>(variantx::Variant<int>()), "Constexpr empty ctor HoldsAlternative ADL failed");
         static_assert(variantx::Variant<int, double>().Index() == 0, "Constexpr empty ctor failed");
     }
 
@@ -242,8 +229,7 @@ namespace advanced_test
 
     TEST(correctness, converting_ctor)
     {
-        variantx::Variant<std::string, long, std::string, char, std::string, int, std::string> v(
-            123);
+        variantx::Variant<std::string, long, std::string, char, std::string, int, std::string> v(123);
 
         ASSERT_TRUE(v.Index() == 5);
         ASSERT_TRUE(HoldsAlternative<int>(v));
@@ -337,8 +323,7 @@ namespace advanced_test
         {
             variantx::Variant<NoCopyAssignment> x;
             variantx::Variant<NoCopyAssignment> other{std::move(x)};
-            if (!HoldsAlternative<NoCopyAssignment>(x) ||
-                !HoldsAlternative<NoCopyAssignment>(other))
+            if (!HoldsAlternative<NoCopyAssignment>(x) || !HoldsAlternative<NoCopyAssignment>(other))
             {
                 return false;
             }
@@ -593,9 +578,8 @@ namespace advanced_test
         ASSERT_TRUE(x2.Index() == 0);
         ASSERT_TRUE(Get<0>(x2));
 
-        variantx::Variant<std::string, std::vector<int>, char> var{std::in_place_index<1>,
-                                                                   std::vector<int>{1, 2, 3, 4, 5}};
-        auto other = std::vector<int>{1, 2, 3, 4, 5};
+        variantx::Variant<std::string, std::vector<int>, char> var{std::in_place_index<1>, std::vector<int>{1, 2, 3, 4, 5}};
+        auto                                                   other = std::vector<int>{1, 2, 3, 4, 5};
         ASSERT_EQ(Get<1>(var), other);
         auto                                                   other2 = std::vector<int>(4, 42);
         variantx::Variant<std::string, std::vector<int>, char> var2{std::in_place_index<1>, 4, 42};
@@ -829,12 +813,11 @@ namespace advanced_test
     TEST(visits, visit_args_forwarding)
     {
         variantx::Variant<OnlyMovable> var;
-        int val1 = variantx::Visit([](const OnlyMovable&) { return 322; }, var);
+        int                            val1 = variantx::Visit([](const OnlyMovable&) { return 322; }, var);
         ASSERT_EQ(val1, 322);
         int val2 = variantx::Visit([](OnlyMovable&) { return 322; }, var);
         ASSERT_EQ(val2, 322);
-        int val3 =
-            variantx::Visit([](const OnlyMovable&&) { return 322; }, std::move(std::as_const(var)));
+        int val3 = variantx::Visit([](const OnlyMovable&&) { return 322; }, std::move(std::as_const(var)));
         ASSERT_EQ(val3, 322);
         int val4 = variantx::Visit([](OnlyMovable&&) { return 322; }, std::move(var));
         ASSERT_EQ(val4, 322);
@@ -844,19 +827,11 @@ namespace advanced_test
     {
         variantx::Variant<int> var;
         int                    x = 42;
-        EXPECT_TRUE(
-            std::is_same_v<decltype(variantx::Visit([&](auto) -> int { return x; }, var)), int>);
-        EXPECT_TRUE(
-            std::is_same_v<decltype(variantx::Visit([&](auto) -> int& { return x; }, var)), int&>);
-        EXPECT_TRUE(
-            std::is_same_v<decltype(variantx::Visit([&](auto) -> const int& { return x; }, var)),
-                           const int&>);
-        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit(
-                                       [&](auto) -> int&& { return std::move(x); }, var)),
-                                   int&&>);
-        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit(
-                                       [&](auto) -> const int&& { return std::move(x); }, var)),
-                                   const int&&>);
+        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit([&](auto) -> int { return x; }, var)), int>);
+        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit([&](auto) -> int& { return x; }, var)), int&>);
+        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit([&](auto) -> const int& { return x; }, var)), const int&>);
+        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit([&](auto) -> int&& { return std::move(x); }, var)), int&&>);
+        EXPECT_TRUE(std::is_same_v<decltype(variantx::Visit([&](auto) -> const int&& { return std::move(x); }, var)), const int&&>);
     }
 
     TEST(swap, both_valueless)
@@ -884,8 +859,7 @@ namespace advanced_test
 
     TEST(swap, one_valueless)
     {
-        using V =
-            variantx::Variant<NonTrivialDestructor, ThrowingMoveAssignmentWithoutMoveConstructor>;
+        using V = variantx::Variant<NonTrivialDestructor, ThrowingMoveAssignmentWithoutMoveConstructor>;
         V a;
         V b;
         ASSERT_ANY_THROW({
@@ -966,7 +940,7 @@ namespace advanced_test
 
     TEST(assignment, back_and_forth)
     {
-        using V = variantx::Variant<NonTrivialIntWrapper, NonTrivialCopyAssignment>;
+        using V                     = variantx::Variant<NonTrivialIntWrapper, NonTrivialCopyAssignment>;
         constexpr auto CTOR_DELTA   = NonTrivialCopyAssignment::CTOR_DELTA;
         constexpr auto ASSIGN_DELTA = NonTrivialCopyAssignment::ASSIGN_DELTA;
 
@@ -1123,8 +1097,7 @@ namespace advanced_test
 
     TEST(ValuelessByException, copy_assign_throwing_copy_and_move)
     {
-        static constexpr ThrowingMemberParams params = {.throwing_copy = true,
-                                                        .throwing_move = true};
+        static constexpr ThrowingMemberParams params = {.throwing_copy = true, .throwing_move = true};
         using ThrowingCopyAndMove                    = ThrowingMembers<params>;
         ThrowingCopyAndMove::reset_counters();
 
@@ -1188,8 +1161,7 @@ namespace advanced_test
 
     TEST(ValuelessByException, move_assign_throwing_copy_and_move)
     {
-        static constexpr ThrowingMemberParams params = {.throwing_copy = true,
-                                                        .throwing_move = true};
+        static constexpr ThrowingMemberParams params = {.throwing_copy = true, .throwing_move = true};
         using ThrowingCopyAndMove                    = ThrowingMembers<params>;
         ThrowingCopyAndMove::reset_counters();
 
@@ -1224,10 +1196,7 @@ namespace advanced_test
 
         struct CountedCalls : ThrowingMembers<params>
         {
-            CountedCalls(ThrowingMembersConstructorTag t) : ThrowingMembers(t)
-            {
-                throw std::exception();
-            }
+            CountedCalls(ThrowingMembersConstructorTag t) : ThrowingMembers(t) { throw std::exception(); }
         };
 
         CountedCalls::reset_counters();
@@ -1262,10 +1231,7 @@ namespace advanced_test
 
         struct CountedCalls : ThrowingMembers<params>
         {
-            CountedCalls(ThrowingMembersConstructorTag t) : ThrowingMembers(t)
-            {
-                throw std::exception();
-            }
+            CountedCalls(ThrowingMembersConstructorTag t) : ThrowingMembers(t) { throw std::exception(); }
         };
 
         CountedCalls::reset_counters();
@@ -1387,8 +1353,7 @@ namespace advanced_test
     template <typename Var>
     static constexpr bool test_equal(const Var& l, const Var& r, bool expect_equal)
     {
-        return ((l == r) == expect_equal) && (!(l != r) == expect_equal) &&
-               ((r == l) == expect_equal) && (!(r != l) == expect_equal);
+        return ((l == r) == expect_equal) && (!(l != r) == expect_equal) && ((r == l) == expect_equal) && (!(r != l) == expect_equal);
     }
 
     TEST(relops, equality)
@@ -1407,16 +1372,16 @@ namespace advanced_test
         {
             V v1(std::in_place_index<0>, 42);
             V v2(std::in_place_index<1>, 42);
+            ASSERT_TRUE(v1.Index() == 0);
+            ASSERT_TRUE(v2.Index() == 1);
             ASSERT_TRUE(test_equal(v1, v2, false));
         }
     }
 
     template <typename Var>
-    static constexpr bool test_less(const Var& l, const Var& r, bool expect_less,
-                                    bool expect_greater)
+    static constexpr bool test_less(const Var& l, const Var& r, bool expect_less, bool expect_greater)
     {
-        return ((l < r) == expect_less) && (!(l >= r) == expect_less) &&
-               ((l > r) == expect_greater) && (!(l <= r) == expect_greater);
+        return ((l < r) == expect_less) && (!(l >= r) == expect_less) && ((l > r) == expect_greater) && (!(l <= r) == expect_greater);
     }
 
     TEST(relops, relational_basic)
