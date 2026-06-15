@@ -29,12 +29,10 @@ namespace variantx
     constexpr VariantAlternativeType<Index, Variant<Ts...>>&& Get(Variant<Ts...>&& variant);
 
     template <std::size_t Index, typename... Ts>
-    constexpr const VariantAlternativeType<Index, Variant<Ts...>>& Get(
-        const Variant<Ts...>& variant);
+    constexpr const VariantAlternativeType<Index, Variant<Ts...>>& Get(const Variant<Ts...>& variant);
 
     template <std::size_t Index, typename... Ts>
-    constexpr const VariantAlternativeType<Index, Variant<Ts...>>&& Get(
-        const Variant<Ts...>&& variant);
+    constexpr const VariantAlternativeType<Index, Variant<Ts...>>&& Get(const Variant<Ts...>&& variant);
 
     template <typename T, typename... Ts>
     constexpr T& Get(Variant<Ts...>& variant);
@@ -49,12 +47,10 @@ namespace variantx
     constexpr const T&& Get(const Variant<Ts...>&& variant);
 
     template <std::size_t Index, typename... Ts>
-    constexpr std::add_pointer_t<VariantAlternativeType<Index, Variant<Ts...>>> GetIf(
-        Variant<Ts...>* variant) noexcept;
+    constexpr std::add_pointer_t<VariantAlternativeType<Index, Variant<Ts...>>> GetIf(Variant<Ts...>* variant) noexcept;
 
     template <std::size_t Index, typename... Ts>
-    constexpr std::add_pointer_t<const VariantAlternativeType<Index, Variant<Ts...>>> GetIf(
-        const Variant<Ts...>* variant) noexcept;
+    constexpr std::add_pointer_t<const VariantAlternativeType<Index, Variant<Ts...>>> GetIf(const Variant<Ts...>* variant) noexcept;
 
     template <typename T, typename... Ts>
     constexpr std::add_pointer_t<T> GetIf(Variant<Ts...>* variant) noexcept;
